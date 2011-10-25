@@ -753,7 +753,7 @@ function! <SID>GlobalUnconvertTags(state)
         mkview
         normal A 
         g/^\*\+\s/call s:UnconvertTags(line("."))
-        silent! %s/^\(\s*\):\(DEADLINE\|SCHEDULED\|CLOSED\|<\d\d\d\d-\d\d-\d\d\)/\1\2/
+        silent! %s/^\(\s*\):\(DEADLINE\|SCHEDULED\|CLOSED\|CLOCK\|<\d\d\d\d-\d\d-\d\d\)/\1\2/
     endif
 endfunction
 function! <SID>UndoUnconvertTags()
@@ -776,7 +776,7 @@ function! <SID>GlobalConvertTags()
     "if exists('g:org_emacs_autoconvert') && (g:org_emacs_autoconvert != 0)
         let save_cursor = getpos(".")
         g/^\*\+\s/call s:ConvertTags(line("."))
-        silent! %s/^\(\s*\)\(DEADLINE:\|SCHEDULED:\|CLOSED:\|<\d\d\d\d-\d\d-\d\d\)/\1:\2/
+        silent! %s/^\(\s*\)\(DEADLINE:\|SCHEDULED:\|CLOSED:\|CLOCK:\|<\d\d\d\d-\d\d-\d\d\)/\1:\2/
         call setpos(".",save_cursor)
     "endif
 endfunction
@@ -2274,13 +2274,13 @@ function! s:OrgIfExpr()
             if index(b:v.todoitems,item[1:]) >= 0
                 let item = '(thisline ' . op . " '^\\*\\+\\s*" . item[1:] . "')"
                 let b:v.my_if_list[i] = item
-            elseif item[1:] ==? 'UNFINISHED_TODOS'
+            elseif item[1:] =~? 'UNFINISHED_TODO\|UNDONE_TODO'
                 let item = '(thisline ' . op . " '" . b:v.todoNotDoneMatch . "')"
                 let b:v.my_if_list[i] = item
-            elseif item[1:] ==? 'FINISHED_TODOS'
+            elseif item[1:] =~? 'FINISHED_TODO\|DONE_TODO'
                 let item = '(thisline ' . op . " '" . b:v.todoDoneMatch . "')"
                 let b:v.my_if_list[i] = item
-            elseif item[1:] ==? 'ALL_TODOS'
+            elseif item[1:] ==? 'ANY_TODO'
                 let item = '(thisline ' . op . " '" . b:v.todoMatch . "')"
                 let b:v.my_if_list[i] = item
             else
@@ -2610,9 +2610,8 @@ function! s:ResultsToAgenda( search_type )
     if a:search_type ==? 'agenda_todo'
         let msg = "Press num to redo search: "
         let numstr= ''
-        "let tlist = ['ALL_TODOS','UNFINISHED_TODOS', 'FINISHED_TODOS'] + b:v.todoitems
         nmap <buffer> r :call OrgRunSearch(g:org_search_spec,'agenda_todo')<cr>
-        let tlist = ['ALL_TODOS','UNFINISHED_TODOS', 'FINISHED_TODOS'] + s:Union(g:org_todoitems,[])
+        let tlist = ['ANY_TODO','UNFINISHED_TODOS', 'FINISHED_TODOS'] + s:Union(g:org_todoitems,[])
         for item in tlist
             let num = index(tlist,item)
             let numstr .= '('.num.')'.item.'  '
@@ -3930,13 +3929,19 @@ endfunction
 command OrgColumns :call OrgColumnsDashboard()
 function! OrgColumnsDashboard()
     let save_cursor = getpos('.')
+    if !exists('b:v.org_columns_show_headings')
+        let b:v.org_columns_show_headings = 0
+    endif
     echohl WarningMsg
+    let save_more = &more
+    set nomore
     let force_all = 0
     while 1
-        echo " Buffer default columns:        " . b:v.buffer_columns
-        echo " Current default columns:         " . b:v.org_inherited_defaults['COLUMNS']
-        echo " Column view is currently:        " . (b:v.columnview==1 ? 'ON' : 'OFF')
-        echo " Heading line count is currently: " . (g:org_show_fold_lines==1 ? 'ON' : 'OFF')
+        echo " Buffer default columns:           " . b:v.buffer_columns
+        echo " Current default columns:          " . b:v.org_inherited_defaults['COLUMNS']
+        echo " Column view is currently:         " . (b:v.columnview==1 ? 'ON' : 'OFF')
+        echo " Show column headers is currently: " . (b:v.org_columns_show_headings ? 'ON' : 'OFF')
+        echo " Heading line count is currently:  " . (g:org_show_fold_lines==1 ? 'ON' : 'OFF')
         if (b:v.columnview == 0) && (force_all == 1)
                 echo " NEXT CHOICE WILL BE APPLIED TO ENTIRE BUFFER"
         endif
@@ -3950,6 +3955,7 @@ function! OrgColumnsDashboard()
             echo " r   revert to buffer default columns"
         endif
         echo " t   toggle column view on/off"
+        echo " h   toggle show headings on/off"
         echo " l   line count on/off"
         if len(g:org_custom_column_options) > 0 
             echo " Custom columns settings:"
@@ -3980,8 +3986,9 @@ function! OrgColumnsDashboard()
             endif
             call ToggleColumnView(master_head)
         elseif key ==? 't'
-            "let b:v.columnview = 1 - b:v.columnview
             call ToggleColumnView(master_head)
+        elseif key ==? 'h'
+            let b:v.org_columns_show_headings = 1 - b:v.org_columns_show_headings
         elseif key ==? 'l'
             let g:org_show_fold_lines = 1 - g:org_show_fold_lines
         elseif key =~ '[0-9]'
@@ -3996,7 +4003,13 @@ function! OrgColumnsDashboard()
         break
     endwhile
 
+    if b:v.org_columns_show_headings == 0
+        call s:ColHeadWindow(0)
+    elseif (b:v.columnview == 1) && (bufnr('ColHeadBuffer') == -1) 
+        call s:ColHeadWindow()
+    endif
     echohl None
+    let &more = save_more
     call s:AdjustItemLen()
     " redraw folded headings
     setlocal foldtext=OrgFoldText()
@@ -5054,8 +5067,9 @@ function! s:OrgSetColumnList(line_for_cols,...)
 endfunction
 function! s:SetColumnHeaders()
     " build g:org_column_headers
+    let g:org_column_headers = ''
     for item in (g:org_colview_list)
-        let [ fmt, field, hdr ] = matchlist(item,'%\(\d*\)\(\S\+[^({]*\)(*\(\d*\)*')[1:3]
+        let [ fmt, field, hdr ] = matchlist(item,'%\(\d*\)\(\S\{-}[^({]*\)(*\(\S*\))*')[1:3]
         let fmt = (fmt ==# '') ? '%-' . g:org_columns_default_width . 's' : ('%-' . fmt . 's')
         if field ==# 'ITEM' | continue | endif
         let g:org_column_headers .= printf( fmt, (hdr ==# '') ? field : hdr )  
@@ -5073,7 +5087,7 @@ function! s:GetFoldColumns(line)
     " build text string with column values
     let result = ''
     for item in (g:org_colview_list)
-        let [ fmt, field, hdr ] = matchlist(item,'%\(\d*\)\(\S\+[^({]*\)(*\(\d*\)*')[1:3]
+        let [ fmt, field, hdr ] = matchlist(item,'%\(\d*\)\(\S\{-}[^({]*\)(*\(\S*\))*')[1:3]
         let fmt = (fmt ==# '') ? '%-' . g:org_columns_default_width . 's' : ('%-' . fmt . 's')
         if field ==# 'ITEM' | continue | endif
         let result .= printf( '|' . fmt, get(props,field,'')) 
@@ -5111,7 +5125,7 @@ function! s:AdjustItemLen()
     let colspec = split(b:v.org_inherited_defaults['COLUMNS'], ' ')
     "while i < len(colspec)
     for item in colspec
-        let [ flen, field ] = matchlist(item,'%\(\d*\)\(\S\+[^({]*\)')[1:2]
+        let [ flen, field ] = matchlist(item,'%\(\d*\)\(\S\{-}[^({]*\)')[1:2]
         if field == 'ITEM' | continue | endif
         let b:v.total_columns_width += (flen > 0) ? flen : g:org_columns_default_width
     endfor
@@ -5238,22 +5252,24 @@ function! OrgFoldText(...)
         let l:line .= s:PrePad("(" 
             \  . s:PrePad( (foldclosedend(line('.'))-foldclosed(line('.'))) . ")",5),
             \ winwidth(0)-len(l:line) - offset) 
-    "elseif (g:org_show_fold_lines && !b:v.columnview) || (l:line =~ b:v.drawerMatch) 
     elseif (g:org_show_fold_lines ) || (l:line =~ b:v.drawerMatch) 
+        let offset = (b:v.columnview && l:line =~ b:v.drawerMatch) ? offset - 6 : offset 
         let l:line .= s:PrePad("|" . s:PrePad( line_count . "|",5),
                     \ winwidth(0)-len(l:line) - offset) 
     endif
     if exists('v:foldhighlight')
         let v:foldhighlight = level_highlight
-        if matchstr(origline, b:v.todoMatch) ># ''
-            let this_todo = matchstr(origline, '^\*\+ \zs\S*')
-            if hlID(this_todo) > 0
-               let v:todohighlight = hlID(this_todo) 
+        if exists('v:todohighlight')
+            if matchstr(origline, b:v.todoMatch) ># ''
+                let this_todo = matchstr(origline, '^\*\+ \zs\S*')
+                if hlID(this_todo) > 0
+                   let v:todohighlight = hlID(this_todo) 
+                else
+                    let v:todohighlight = ('* ' . this_todo =~ b:v.todoDoneMatch) ? hlID('DONETODO') : hlID('NOTDONETODO')
+                endif
             else
-                let v:todohighlight = ('* ' . this_todo =~ b:v.todoDoneMatch) ? hlID('DONETODO') : hlID('NOTDONETODO')
+                let v:todohighlight=0
             endif
-        else
-            let v:todohighlight=0
         endif
     endif
     return l:line
@@ -5692,7 +5708,14 @@ function! s:AlignSectionR(regex,skip,extra) range
     call map(section, 's:AlignLine(v:val, sep, a:skip, minst, maxpos - matchend(v:val,a:skip.sep) , extra)')
     call setline(a:firstline, section)
 endfunction
-function! s:ColHeadWindow()
+function! s:ColHeadWindow(...)
+    if (a:0 == 1) && (a:1 == 0) 
+       if bufnr('ColHeadBuffer') > -1
+           bw ColHeadBuffer
+       endif
+       return
+    endif
+
     au! BufEnter ColHeadBuffer
     "let s:AgendaBufferName = 'ColHeadBuffer'
     "call s:AgendaBufferOpen(1)
@@ -5700,7 +5723,6 @@ function! s:ColHeadWindow()
     1split ColHeadBuffer
     call s:ScratchBufSetup()
     
-    "call s:SetColumnHead()
     execute "setlocal statusline=%#Search#%{<SNR>" . s:SID() . '_ColumnStatusLine()}'
     set winfixheight
     set winminheight=0
@@ -5924,7 +5946,7 @@ function! OrgAgendaDashboard()
         endif
         try
             if key ==? 't'
-                silent execute "call OrgRunSearch('+ALL_TODOS','agenda_todo')"
+                silent execute "call OrgRunSearch('+ANY_TODO','agenda_todo')"
             elseif key ==? 'a'
                 silent execute "call OrgRunAgenda(s:Today(),'w')"
             elseif key ==? 'L'
@@ -6084,40 +6106,42 @@ function! s:OrgHasEmacsVar()
 endfunction
 function! OrgEvalBlock()
     let savecursor = getpos('.')
+    let save_showcmd = &showcmd | set noshowcmd
     
-    let block_name = matchstr(getline(line('.')),'^#+BEGIN:\s*\zs\S\+')
+    let block_name = matchstr(getline(line('.')),'\c^#+BEGIN:\s*\zs\S\+')
 
     if block_name ==# ''
         echo "You aren't on BEGIN line of dynamic block."
         return
     endif
-    let end = search('^#+END:\s*' . block_name,'n','') 
+    let end = search('\c^#+END','n','') 
     let start=line('.')
     exec (start+1) . ',' . (end-1) . 'delete'
     exec start
+    let line_mark = '@@@@@' . start . '@e@f@g@h'
+    exec 'normal o' . line_mark 
     
     silent write!
     let this_file = substitute(expand("%:p"),'\','/','g')
     let this_file = substitute(this_file,' ','\ ','g')
 
-        "let part1 = '(let ((org-confirm-babel-evaluate nil)(buf (find-file \' . s:cmd_line_quote_fix . '"' . this_file . '\' . s:cmd_line_quote_fix . '"' . '))) (progn (goto-line 157 buf)(org-dblock-update)(org-narrow-to-subtree)(print \^"abcdefgh\^")(set-buffer buf)(not-modified)(kill-this-buffer)))' 
-        let part1 = '(let ((org-confirm-babel-evaluate nil)(buf (find-file \' . s:cmd_line_quote_fix . '"' . this_file . '\' . s:cmd_line_quote_fix . '"' . '))) (progn (goto-line 157 buf)(org-dblock-update)(org-narrow-to-block)(write-region (point-min) (point-max) \' . s:cmd_line_quote_fix . '"~/org-block.org\' . s:cmd_line_quote_fix . '")(set-buffer buf) (not-modified) (kill-this-buffer)))' 
+        let part1 = '(let ((org-confirm-babel-evaluate nil)(buf (find-file \' . s:cmd_line_quote_fix . '"' . this_file . '\' . s:cmd_line_quote_fix . '"' . '))) (progn (search-forward \^"' . line_mark . '\^" )(forward-line -1)(org-dblock-update)(org-narrow-to-block)(write-region (point-min) (point-max) \' . s:cmd_line_quote_fix . '"~/org-block.org\' . s:cmd_line_quote_fix . '")(set-buffer buf) (not-modified) (kill-this-buffer)))' 
         let orgcmd = g:org_command_for_emacsclient . ' --eval ' . s:cmd_line_quote_fix . '"' . part1 . s:cmd_line_quote_fix . '"'
+        redraw
+        unsilent echo "Calculating in Emacs. . . "
         if exists('*xolox#shell#execute')
             silent call xolox#shell#execute(orgcmd, 1)
         else
           silent  exe '!' . orgcmd
         endif
+        
         exec start
+        normal 3ddk
         silent exe 'read ~/org-block.org'
+        redraw
+        unsilent echo "Block is being evaluated in Emacs. . .   Evaluation complete."
 
-        "endif
-        "exe start .',' . end . 'read ~/org-tbl-block.org'
-        "exe start . ',' . end . 'd'
-        unsilent echo "Calculations complete."
-    "else
-        "unsilent echo "error."
-    "endif
+        let &showcmd = save_showcmd
     call setpos('.',savecursor)
 endfunction
 function! OrgEvalTable()
@@ -6126,11 +6150,14 @@ function! OrgEvalTable()
     let start=line('.')
     " find first line after table block and check for formulas
     call search('^\(\s*|\)\@!','','')
-    if getline(line('.'))[0:6] == '#+TBLFM'
+    "if getline(line('.'))[0:6] == '#+TBLFM'
         let end=line('.')
         exe start . ',' . end . 'w! ~/org-tbl-block.org'
         let part1 = '(let ((org-confirm-babel-evaluate nil)(buf (find-file \' . s:cmd_line_quote_fix . '"~/org-tbl-block.org\' . s:cmd_line_quote_fix . '"' . '))) (progn (org-table-recalculate-buffer-tables)(save-buffer buf)(kill-buffer buf)))' 
         let orgcmd = g:org_command_for_emacsclient . ' --eval ' . s:cmd_line_quote_fix . '"' . part1 . s:cmd_line_quote_fix . '"'
+        redraw
+        unsilent echo "Calculating in Emacs. . . "
+
         if exists('*xolox#shell#execute')
             silent call xolox#shell#execute(orgcmd, 1)
         else
@@ -6138,10 +6165,11 @@ function! OrgEvalTable()
         endif
         exe start .',' . end . 'read ~/org-tbl-block.org'
         exe start . ',' . end . 'd'
-        unsilent echo "Calculations complete."
-    else
-        unsilent echo "No #+TBLFM line at end of table, so no calculations necessary."
-    endif
+        redraw
+        unsilent echo "Calculating in Emacs. . .   Calculations complete."
+    "else
+    "    unsilent echo "No #+TBLFM line at end of table, so no calculations necessary."
+    "endif
     call setpos('.',savecursor)
 endfunction
 function! OrgEval()
@@ -6202,12 +6230,14 @@ function! OrgExportDashboard()
     if s:OrgHasEmacsVar() == 0
        return
     endif
+    let save_more = &more | set nomore
+    let save_showcmd = &showcmd | set noshowcmd
     " show export dashboard
     let mydict = { 't':'template', 'a':'ascii', 'n':'latin-1', 'u':'utf-8',
             \     'h':'html', 'b':'html-and-open', 'l':'latex', 
-            \     'F':'current-file', 'P':'current-project', 'E':'all', 
             \     'f':'freemind', 'j':'taskjuggler', 'k':'taskjuggler-and-open',
-            \     'p':'pdf', 'd':'pdf-and-open', 'D':'docbook', 'g':'tangle' } 
+            \     'p':'pdf', 'd':'pdf-and-open', 'D':'docbook', 'g':'tangle',  
+            \     'F':'current-file', 'P':'current-project', 'E':'all' } 
     echo " Press key for export operation:"
     echo " --------------------------------"
     echo " [t]   insert the export options template block"
@@ -6252,32 +6282,37 @@ function! OrgExportDashboard()
                 let g:mypart1 = '(let ((org-export-babel-evaluate nil)'
             endif
             let g:mypart1 .= '(buf (find-file \' . s:cmd_line_quote_fix . '"' . g:myfilename . '\' . s:cmd_line_quote_fix . '"))) (progn  (' 
-            if item == 'g' 
-                "let g:mypart3 = ' ) (kill-buffer buf) ))'
-                "let g:mypart3 = ' ) (set-buffer buf) (set-buffer-modified-p nil) (kill-buffer buf) ))'
-                let g:mypart3 = ' buf) (set-buffer buf) (not-modified) (kill-this-buffer) ))'
-            else
-                "let g:mypart3 = ' nil ) (set-buffer-modified-p nil) (kill-buffer buf) ))'
-                "let g:mypart3 = ' ) (set-buffer buf) (set-buffer-modified-p nil) (kill-buffer buf) ))'
-                let g:mypart3 = ' buf) (set-buffer buf) (not-modified) (kill-this-buffer) ))'
+
+            if item =~? 'g' 
+                let g:mypart3 = ' ) (set-buffer buf) (not-modified) (kill-this-buffer) ))'
+            else  
+                let g:mypart3 = ' nil ) (set-buffer buf) (not-modified) (kill-this-buffer) ))'
             endif
-            if item =~ 'F\|P\|E'
+            
+            if item =~# 'F\|P\|E'
                 let command_part2 = ' org-publish-' . mydict[key]
             elseif item == 'g'
                 let command_part2 = ' org-babel-tangle'
             else
                 let command_part2 = ' org-export-as-' . mydict[key]
             endif
+
             let orgcmd =  orgpath . s:cmd_line_quote_fix . '"' . g:mypart1 . command_part2 . g:mypart3 . s:cmd_line_quote_fix . '"'
+            let g:orgcmd = orgcmd
             " execute the call out to emacs
+            redraw
+            echo "Export in progress. . . "
             if exists('*xolox#shell#execute')
-                silent call xolox#shell#execute(orgcmd, 1)
+                silent! call xolox#shell#execute(orgcmd, 1)
             else
-                silent execute '!' . orgcmd
+                "execute '!' . orgcmd
+                silent! execute '!' . orgcmd
             endif
+            redraw
+            echo "Export in progress. . . Export complete."
             "call s:UndoUnconvertTags()
             "let g:org_emacs_autoconvert = 0
-            silent exec 'write'
+            "silent exec 'write'
             break
         endif
     endfor
@@ -6299,8 +6334,10 @@ function! OrgExportDashboard()
                     \ ,'#+LINK_HOME: '
                     \ ,'#+XSLT: '
                     \ ]
-        call append(line('.')-1,template)
+        silent call append(line('.')-1,template)
     endif
+    let &more = save_more
+    let &showcmd = save_showcmd
 
 endfunction
 
@@ -6769,7 +6806,7 @@ amenu &Org.&Logging\ work.Clock\ in<tab>,ci :call OrgClockIn(line('.'))<cr>
 amenu &Org.&Logging\ work.Clock\ out<tab>,co :call OrgClockOut()<cr>
 amenu &Org.-Sep4- :
 amenu &Org.Agenda\ command<tab>,ag :call OrgAgendaDashboard()<cr>
-amenu <silent> &Org.&Do\ Emacs\ Eval<tab>,xe :call OrgEval()<cr>
+amenu <silent> &Org.&Do\ Emacs\ Eval<tab>,v :call OrgEval()<cr>
 amenu &Org.File\ &List\ for\ Agenda :call EditAgendaFiles()<cr>
 amenu &Org.Special\ &views\ current\ file :call OrgCustomSearchMenu()<cr>
 amenu &Org.-Sep5- :
