@@ -21,6 +21,14 @@ endif
 
 let g:org_autoload_funcs=1
 
+function! org#Strftime(time)
+  let old_local = v:lc_time
+  language time C
+  let ret = strftime(a:time)
+  exe "language time" old_local
+  return ret
+endfunction
+
 function! org#SetOrgFileType()
         "if expand("%:e") == 'org'
                 if &filetype != 'org'
@@ -46,7 +54,7 @@ function! org#Pad(s,amt)
 endfunction
 
 function! org#Timestamp()
-    return strftime("%Y-%m-%d %a %H:%M")
+    return org#Strftime("%Y-%m-%d %a %H:%M")
 endfunction
 
 function! org#GetGroupHighlight(group)
