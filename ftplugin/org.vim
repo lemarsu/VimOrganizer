@@ -31,33 +31,37 @@ let maplocalleader = ","        " Org key mappings prepend single comma
 let s:sfile = expand("<sfile>:p:h")
 let b:v.dateMatch = '\(\d\d\d\d-\d\d-\d\d\)'
 let b:v.headMatch = '^\*\+\s'
+let b:v.tableMatch = '^\(\s*|.*|\s*$\|#+TBLFM\)'
 let b:v.taglineMatch = '^\s*:\S\+:\s*$'
 let b:v.headMatchLevel = '^\(\*\)\{level}\s'
 let b:v.propMatch = '^\s*:\s*\(PROPERTIES\)'
 let b:v.propvalMatch = '^\s*:\s*\(\S*\)\s*:\s*\(\S.*\)\s*$'
-let b:v.drawerMatch = '^\s*:\s*\(PROPERTIES\|LOGBOOK\)'
+let b:v.drawerMatch = '^\s*:\(PROPERTIES\|LOGBOOK\)'
 let b:v.levelstars = 1
 let b:v.effort=['0:05','0:10','0:15','0:30','0:45','1:00','1:30','2:00','4:00']
 let b:v.tagMatch = '\(:\S*:\)\s*$'
 let b:v.mytags = ['buy','home','work','URGENT']
 let b:v.foldhi = ''
 let b:v.org_inherited_properties = ['COLUMNS']
-let b:v.org_inherited_defaults = {'CATEGORY':expand('%:t:r'),'COLUMNS':'%30TAGS'}
+let b:v.org_inherited_defaults = {'CATEGORY':expand('%:t:r'),'COLUMNS':'%40ITEM %30TAGS'}
 let w:v.total_columns_width = 30
 
 let b:v.buf_tags_static_spec = ''
 let b:v.buffer_category = ''
+if !exists('g:org_agenda_default_search_spec')
+    let g:org_agenda_default_search_spec = 'ANY_TODO'
+endif
 if exists('g:global_column_defaults') 
     let b:v.buffer_columns = g:global_column_defaults' 
 else
-    let b:v.buffer_columns = '%30TAGS'
+    let b:v.buffer_columns = '%40ITEM %30TAGS'
 endif
 let w:sparse_on = 0
-if exists('g:global_column_view') && g:global_column_view==1
-    let w:v.columnview = 1
-else
-    let w:v.columnview = 0
-endif
+"if exists('g:global_column_view') && g:global_column_view==1
+"    let w:v.columnview = 1
+"else
+"    let w:v.columnview = 0
+"endif
 
 let b:v.clock_to_logbook = 1
 let b:v.messages = []
@@ -107,7 +111,7 @@ let b:v.suppress_list_indent=0
 if !exists('g:org_loaded')
 
 if !exists('g:org_custom_column_options')
-    let g:org_custom_column_options = ['%15DEADLINE %35TAGS', '%35TAGS'] 
+    let g:org_custom_column_options = ['%ITEM %15DEADLINE %35TAGS', '%ITEM %35TAGS'] 
 endif
 
 if !exists('g:org_custom_colors')
@@ -182,7 +186,7 @@ let s:AgendaBufferName = "__Agenda__"
 let s:sparse_lines = {}
 
 "testing stuff
-function CustomSearchesSetup()
+function! CustomSearchesSetup()
     let g:org_custom_searches = [
                 \    { 'name':"Next week's agenda", 'type':'agenda', 
                 \                'agenda_date':'+1w','agenda_duration':'w'}
@@ -192,7 +196,7 @@ function CustomSearchesSetup()
                 \    , { 'name':'Home tags', 'type':'sparse_tree', 'spec':'+HOME'}
                 \           ]
 endfunction
-function RunCustom(searchnum)
+function! RunCustom(searchnum)
     let mydict = g:org_custom_searches[a:searchnum]
     if mydict.type ==? 'agenda'
         call OrgRunAgenda( DateCueResult( mydict.agenda_date, s:Today()), 
@@ -230,6 +234,7 @@ function! OrgProcessConfigLines()
         elseif line =~ '^#+COLUMNS'
             let b:v.buffer_columns = matchstr( line ,'^#+COLUMNS:\s*\zs.*')
             let b:v.org_inherited_defaults['COLUMNS'] = b:v.buffer_columns
+            "let w:v.org_current_columns = b:v.buffer_columns
         elseif line =~ '#+STARTUP:'
             let startup_list = split(matchstr( line, '#+STARTUP:\s*\zs.*') )
             for item in startup_list
@@ -1207,7 +1212,7 @@ function! s:FoldStatus(line)
     return l:status
 endfunction 
 
-function OrgEnterFunc()
+function! OrgEnterFunc()
     let syn_items = synstack(line('.'),col('.'))
     call map(syn_items, "synIDattr(v:val,'name')")
     if (index(syn_items,'Org_Full_Link') >= 0) || ( index(syn_items,'Org_Half_Link') >= 0)
@@ -1428,11 +1433,35 @@ function! s:ShowSubs(number,withtext)
     call setpos(".",save_cursor)
 endfunction
 
-function! OrgMoveLevel(line, direction)
+" 2 args of start line num and direction ('up' or 'down')
+"command -nargs=* OrgMoveLevel :call OrgMoveLevel(<f-args>,v:count1)
+nmap <buffer> <localleader>,q :<C-U>call OrgMoveLevel(line('.'),'up',v:count1)<cr>
+
+function! OrgMoveLevel(line, direction,...)
+    if a:0>=1
+        let mycount = a:1
+    else
+        let mycount = 1
+    endif
     " move a heading tree up, down, left, or right
     let lastline = s:OrgSubtreeLastLine_l(a:line)
     if a:direction ==? 'up'
-        let l:headabove = s:OrgPrevSiblingHead()
+        let l:headabove = a:line
+        let count_message = ''
+        for i in range( 1, mycount)
+            let lasthead = l:headabove
+            let l:headabove = s:OrgPrevSiblingHead_l(l:headabove)
+            if l:headabove  > 0
+                let count_message = 'Moved up ' . i . ' levels.' 
+            elseif i == 1
+                " break with no message here
+                break
+            else
+                let l:headabove = lasthead
+                if i <= mycount | let count_message .= '  No more siblings above.' | endif
+                break
+            endif
+        endfor
         if l:headabove > 0 
             let l:lines = getline(line("."), lastline)
             call s:DoFullCollapse(a:line)
@@ -1440,15 +1469,31 @@ function! OrgMoveLevel(line, direction)
             call append(l:headabove-1,l:lines)
             execute l:headabove
             call s:ShowSubs(1,0)
-        else 
+            echo count_message
+        else
             echo "No sibling heading above in this subtree."
         endif
     elseif a:direction ==? 'down'
-        let l:headbelow = s:OrgNextSiblingHead()
+        let l:headbelow = a:line
+        let count_message = ''
+        for i in range(1, mycount)
+            let lasthead = l:headbelow
+            let l:headbelow = s:OrgNextSiblingHead_l(l:headbelow)
+            if l:headbelow  > 0
+                let count_message = 'Moved down ' . i . ' levels.' 
+            elseif i == 1
+                " break with no message here
+                break
+            else
+                let l:headbelow = lasthead
+                if i <= mycount | let count_message .= '  No more siblings below.' | endif
+                break
+            endif
+        endfor
         if l:headbelow > 0 
             let endofnext = s:OrgSubtreeLastLine_l(l:headbelow)
             let lines = getline(line("."),lastline)
-            call append(endofnext,lines)
+            silent call append(endofnext,lines)
             execute endofnext + 1
             " set mark and go back to delete original subtree
             normal ma
@@ -1457,6 +1502,7 @@ function! OrgMoveLevel(line, direction)
             silent normal! dd
             normal g'a
             call s:ShowSubs(1,0)
+            echo count_message
         else 
             echo "No sibling below in this subtree."
         endif
@@ -1665,8 +1711,11 @@ function! OrgGlobalCycle()
     "    call setpos('.',s)
     "    let s:orgskipthirdcycle = 1
     else
+        let save_cursor = getpos('.')
         set foldlevel=9999
+        silent exec 'g/' . b:v.drawerMatch . '/normal! zc'
         let s:orgskipthirdcycle = 0
+        call setpos('.',save_cursor)
     endif
 endfunction
 function! s:LastTextLine(headingline)
@@ -3679,7 +3728,8 @@ function! s:OrgExpandLevelText(startlevel, endlevel)
     while search(l:mypattern, 'cW') > 0
         execute line(".") + 1
         while getline(line(".")) =~ b:v.drawerMatch
-            execute line(".") + 1
+           execute line(".") + 1
+           normal! j
         endwhile
         if s:IsText(line(".")) 
             normal zv
@@ -3927,13 +3977,15 @@ function! CalEdit( sdate, stime )
         return newdate 
 endfunction
 
-command OrgColumns :call OrgColumnsDashboard()
+command! OrgColumns :call OrgColumnsDashboard()
 function! OrgColumnsDashboard()
     let save_cursor = getpos('.')
     if !exists('w:v.columnview')
         let w:v={'columnview':0}
         let w:v.org_item_len=100
         let w:v.org_colview_list = []
+        let w:v.org_current_columns = ''
+        let w:v.org_column_item_head = ''
     endif
     if !exists('b:v.org_columns_show_headings')
         let b:v.org_columns_show_headings = 0
@@ -3943,8 +3995,10 @@ function! OrgColumnsDashboard()
     set nomore
     let force_all = 0
     while 1
+        echohl MoreMsg
+        echo "=========================================="
         echo " Buffer default columns:           " . b:v.buffer_columns
-        echo " Current default columns:          " . b:v.org_inherited_defaults['COLUMNS']
+        echo " Current default columns:          " . w:v.org_current_columns
         echo " Column view is currently:         " . (w:v.columnview==1 ? 'ON' : 'OFF')
         echo " Show column headers is currently: " . (b:v.org_columns_show_headings ? 'ON' : 'OFF')
         echo " Heading line count is currently:  " . (g:org_show_fold_lines==1 ? 'ON' : 'OFF')
@@ -3957,7 +4011,7 @@ function! OrgColumnsDashboard()
         if (w:v.columnview == 0) && (force_all == 0)
                 echo " f   force all of buffer to use chosen columns"
         endif
-        if b:v.org_inherited_defaults['COLUMNS'] != b:v.buffer_columns
+        if w:v.org_current_columns != b:v.buffer_columns
             echo " r   revert to buffer default columns"
         endif
         echo " t   toggle column view on/off"
@@ -3986,23 +4040,26 @@ function! OrgColumnsDashboard()
         let master_head = (force_all == 1 ) ? 0 : line('.')
        
         if key ==? 'r'
-            let b:v.org_inherited_defaults['COLUMNS'] = b:v.buffer_columns
+            let w:v.org_current_columns = b:v.buffer_columns
             if w:v.columnview == 1
-                call ToggleColumnView(master_head)
+                "turn off col view
+                call ToggleColumnView(master_head, w:v.org_current_columns)
             endif
-            call ToggleColumnView(master_head)
+            call ToggleColumnView(master_head, w:v.org_current_columns)
         elseif key ==? 't'
-            call ToggleColumnView(master_head)
+            " current columns will get set in SetColumnHeads()
+            call ToggleColumnView(master_head,'')
         elseif key ==? 'h'
             let b:v.org_columns_show_headings = 1 - b:v.org_columns_show_headings
         elseif key ==? 'l'
             let g:org_show_fold_lines = 1 - g:org_show_fold_lines
         elseif key =~ '[0-9]'
-            let b:v.org_inherited_defaults['COLUMNS'] = g:org_custom_column_options[key]
+            let w:v.org_current_columns = g:org_custom_column_options[key]
             if w:v.columnview == 1
-                call ToggleColumnView(master_head)
+                " turn off
+                call ToggleColumnView(master_head, w:v.org_current_columns)
             endif
-            call ToggleColumnView(master_head)
+            call ToggleColumnView(master_head, w:v.org_current_columns)
         else
             echo "No column option selected."
         endif
@@ -4010,9 +4067,9 @@ function! OrgColumnsDashboard()
     endwhile
 
     if b:v.org_columns_show_headings == 0
-        call s:ColHeadWindow(0)
+        call s:ColHeadWindow('',0)
     elseif (w:v.columnview == 1) && (bufnr('ColHeadBuffer') == -1) 
-        call s:ColHeadWindow()
+        call s:ColHeadWindow(w:v.org_column_item_head)
     endif
     echohl None
     let &more = save_more
@@ -4032,15 +4089,16 @@ function! OrgDateDashboard()
     else
         let props = s:GetProperties(line('.'),0)
     endif
-    echohl WarningMsg
-    echo " Press key for a date command:"
-    echo " --------------------------------"
-    echo " d   set DEADLINE for current heading (currently: " . get(props,'DEADLINE','NONE') . ')'
-    echo " s   set SCHEDULED for current heading (currently: " . get(props,'SCHEDULED','NONE') . ')'
-    echo " c   set CLOSED for current heading (currently: " . get(props,'CLOSED','NONE') . ')'
-    echo " t   set TIMESTAMP for current heading (currently: " . get(props,'TIMESTAMP','NONE') . ')'
-    echo " g   set date at cursor"
-    echo " "
+    echohl MoreMsg
+    echo " ================================="
+    echo " Press key, for a date command:"
+    echo " ---------------------------------"
+    echo " d   set D,EADLINE for current heading (currently: " . get(props,'DEADLINE','NONE') . ')'
+    echo " s   set S,CHEDULED for current heading (currently: " . get(props,'SCHEDULED','NONE') . ')'
+    echo " c   set C,LOSED for current heading (currently: " . get(props,'CLOSED','NONE') . ')'
+    echo " t   set T,IMESTAMP for current heading (currently: " . get(props,'TIMESTAMP','NONE') . ')'
+    echo " g   set d,ate at cursor"
+    echo " "        ,
     echo " "
     echohl Question
     let key = nr2char(getchar())
@@ -5047,23 +5105,30 @@ function! s:OrgSetColumnList(line_for_cols,...)
     let save_inherit_setting = s:include_inherited_props
     let s:include_inherited_props = 1
     try
-        let props = s:GetProperties(a:line_for_cols,0)
+        let column_prop = s:GetProperties(a:line_for_cols,0)['COLUMNS']
     finally
         let s:include_inherited_props = save_inherit_setting
     endtry
 
-    if (a:0 == 1) && (a:1==0)
-        let s:org_columns_master_heading = a:1
+    if (a:0 >= 1) && (a:1==0)
+        " use 0 for master head, i.e., columns for entire doc
+        let w:v.org_columns_master_heading = a:1
     else
-        let s:org_columns_master_heading = s:OrgGetHead_l(a:line_for_cols)
+        let w:v.org_columns_master_heading = s:OrgGetHead_l(a:line_for_cols)
+    endif
+    if (a:0 >= 2) && (a:2 ># '')
+        " use column spec that was passed in
+        let column_prop = a:2
+    else   
+        let w:v.org_current_columns = column_prop
     endif
     
     let result = ''
     let g:org_column_headers = ''
     let i = 0
-    " get column list for this line
-    if get(props,'COLUMNS') ># ''
-        let w:v.org_colview_list=split(props['COLUMNS'],' ')
+    
+    if column_prop ># ''
+        let w:v.org_colview_list=split(column_prop,' ')
     else
         let w:v.org_colview_list=[]
     endif
@@ -5074,11 +5139,12 @@ endfunction
 function! s:SetColumnHeaders()
     " build g:org_column_headers
     let g:org_column_headers = ''
+    let w:v.org_column_item_head = ''
     for item in (w:v.org_colview_list)
-        let [ fmt, field, hdr ] = matchlist(item,'%\(\d*\)\(\S\{-}[^({]*\)(*\([^\s)]*\)')[1:3]
+        let [ fmt, field, hdr ] = matchlist(item,'%\(\d*\)\(\S\{-}[^({]*\)(*\([^ )]*\)')[1:3]
         let fmt = (fmt ==# '') ? '%-' . g:org_columns_default_width . 's' : ('%-' . fmt . 's')
         if field ==# 'ITEM' 
-           let s:org_column_item_head = (hdr=='') ? 'ITEM' : hdr
+           let w:v.org_column_item_head = (hdr=='') ? 'ITEM' : hdr
            continue 
         endif
         let g:org_column_headers .= printf('|' . fmt, (hdr ==# '') ? field : hdr )  
@@ -5097,17 +5163,20 @@ function! s:GetFoldColumns(line)
     let result = ''
     for item in (w:v.org_colview_list)
         let [ fmt, field, hdr ] = matchlist(item,'%\(\d*\)\(\S\{-}[^({]*\)(*\(\S*\))*')[1:3]
-        let fmt = (fmt ==# '') ? '%-' . g:org_columns_default_width . 's' : ('%-' . fmt . 's')
         if field ==# 'ITEM' | continue | endif
-        let result .= printf( '|' . fmt, get(props,field,'')) 
+        let fldtext = get(props,field,'')
+        let fmt = (fmt ==# '') ? g:org_columns_default_width :  fmt 
+        " truncate text if too long
+        let fldtext = (len(fldtext)<=fmt) ? fldtext : (fldtext[:fmt-3] . '..')
+        "let fmt = '%-' . g:org_columns_default_width . 's' : ('%-' . fmt . 's')
+        let result .= printf( '|%-'.fmt.'s', fldtext,'') 
     endfor
 
     return result
 
 endfunction
-function! ToggleColumnView(master_head)
+function! ToggleColumnView(master_head,col_spec)
 
-    "au! BufEnter ColHeadBuffer call s:ColHeadBufferEnter()
     if w:v.columnview
         let winnum = bufwinnr('ColHeadBuffer')
         if winnum > 0 
@@ -5115,8 +5184,8 @@ function! ToggleColumnView(master_head)
         endif
         let w:v.columnview = 0
     else
-        call s:OrgSetColumnList(line('.'),a:master_head)
-        call s:ColHeadWindow()
+        call s:OrgSetColumnList(line('.'),a:master_head,a:col_spec)
+        call s:ColHeadWindow(w:v.org_column_item_head)
         let w:v.columnview = 1
     endif   
 endfunction
@@ -5124,30 +5193,42 @@ function! <SID>ColumnStatusLine()
     if exists('g:org_column_headers')
         let part2 = s:PrePad(g:org_column_headers, winwidth(0)-13) 
 
-        return '   ' . s:org_column_item_head .  part2
+        return '   ' . w:v.org_column_item_head .  part2
     endif
 endfunction
 function! s:AdjustItemLen()
     " called on VimResized event, adjusts length of heading when folded
+    if &filetype != 'org'
+        return
+    endif
+
     if !exists('w:v.columnview')
-        let w:v={'columnview':0}
-        let w:v.org_item_len=100
-        let w:v.org_colview_list = []
+        let w:v={'columnview':0, 'org_item_len':100, 'org_colview_list':[],'org_current_columns':'','org_column_item_head':''}
     endif
     let i = 1
     let w:v.total_columns_width = 3
-    let colspec = split(b:v.org_inherited_defaults['COLUMNS'], ' ')
-    "while i < len(colspec)
+    let colspec = split(w:v.org_current_columns, ' ')
+    
     for item in colspec
         let [ flen, field ] = matchlist(item,'%\(\d*\)\(\S\{-}[^({]*\)')[1:2]
         if field == 'ITEM' | continue | endif
         let w:v.total_columns_width += (flen > 0) ? flen : g:org_columns_default_width
     endfor
-    if expand('%') !~ '__Agenda__'
-        let w:v.org_item_len = winwidth(0) - 10 - ((w:v.columnview==1) ? w:v.total_columns_width : 0)
-    endif
+    
+    let w:v.org_item_len = winwidth(0) - 10 - ((w:v.columnview==1) ? w:v.total_columns_width : 0)
 endfunction
-au VimResized * call s:AdjustItemLen()
+au VimResized * :call s:ResizedWin()
+function! s:ResizedWin()
+    let curwin = winnr()
+    ""avoid using 'windo' b/c it screws up colheadbuffer's 0 height
+    for i in range(1,winnr('$'))
+        if getbufvar(winbufnr(i),'&filetype') == 'org'
+             exec i . 'wincmd w'
+             call s:AdjustItemLen()
+        endif
+    endfor
+    exec curwin . 'wincmd w'
+endfunction
 
 function! <SID>CalendarChoice(day, month, year, week, dir)
     let g:agenda_startdate = a:year.'-' . s:Pre0(a:month).'-'.s:Pre0(a:day) 
@@ -5259,7 +5340,7 @@ function! OrgFoldText(...)
     endif
     let offset = &fdc + 5*(&number) + (w:v.columnview ? 7 : 1)
     if w:v.columnview && (origline =~ b:v.headMatch) 
-        if (s:org_columns_master_heading == 0) || s:HasAncestorHeadOf(foldstart,s:org_columns_master_heading)
+        if (w:v.org_columns_master_heading == 0) || s:HasAncestorHeadOf(foldstart,w:v.org_columns_master_heading)
             let l:line .= s:PrePad(s:GetFoldColumns(foldstart), winwidth(0)-len(l:line) - offset)
         else
             let offset -= 6
@@ -5725,8 +5806,8 @@ function! s:AlignSectionR(regex,skip,extra) range
     call map(section, 's:AlignLine(v:val, sep, a:skip, minst, maxpos - matchend(v:val,a:skip.sep) , extra)')
     call setline(a:firstline, section)
 endfunction
-function! s:ColHeadWindow(...)
-    if (a:0 == 1) && (a:1 == 0) 
+function! s:ColHeadWindow(itemhead,...)
+    if (a:0 >= 1) && (a:1 == 0) 
        if bufnr('ColHeadBuffer') > -1
            bw ColHeadBuffer
        endif
@@ -5740,9 +5821,10 @@ function! s:ColHeadWindow(...)
     1split ColHeadBuffer
     call s:ScratchBufSetup()
     
-    execute "setlocal statusline=%#Search#%{<SNR>" . s:SID() . '_ColumnStatusLine()}'
+    execute "setlocal statusline=%#OrgColumnHeadings#%{<SNR>" . s:SID() . '_ColumnStatusLine()}'
     set winfixheight
     set winminheight=0
+    let w:v = {'org_column_item_head': a:itemhead}
     
     wincmd j
     " make lower window as big as possible to shrink 
@@ -5923,6 +6005,9 @@ function! OrgAgendaDashboard()
         let restrict = 0
         let saved_afiles = []
         while 1
+            echohl MoreMsg
+            echo ""
+            echo " ================================"
             echo " Press key for an agenda command:"
             echo " --------------------------------"
             echo " a   Agenda for current week"
@@ -5940,6 +6025,7 @@ function! OrgAgendaDashboard()
                 echo "     Will restrict to current buffer.  Press a key to choose search..."
             endif
             echo ""
+            echohl None
             let key = nr2char(getchar())
             redraw
             if key == '<'
@@ -5965,10 +6051,10 @@ function! OrgAgendaDashboard()
             if key ==? 't'
                 silent execute "call OrgRunSearch('+ANY_TODO','agenda_todo')"
             elseif key ==? 'a'
-                if (g:org_search_spec ==# '') 
-                    let g:org_search_spec = b:v.agenda_default_search_spec
-                endif
-                silent execute "call OrgRunAgenda(s:Today(),'w')"
+                "if (g:org_search_spec ==# '') 
+                    "let g:org_search_spec = g:agenda_default_search_spec
+                "endif
+                silent execute "call OrgRunAgenda(s:Today(),'w', g:org_agenda_default_search_spec)"
             elseif key ==? 'L'
                 silent execute "call s:Timeline()"
             elseif key ==? 'c'
@@ -6166,29 +6252,136 @@ function! OrgEvalBlock()
         let &showcmd = save_showcmd
     call setpos('.',savecursor)
 endfunction
-function! OrgEvalTable()
+
+function! s:OrgTableOptionList(A,L,P)
+    return keys(s:OrgTableEvalOptions())
+endfunction
+command! -buffer -nargs=? -complete=customlist,s:OrgTableOptionList OrgTblEval :call OrgEvalTable(<f-args>)
+function! s:OrgTableEvalOptions()
+    return  { 'col_right':'org-table-move-column-right',
+                            \ 'col_left': 'org-table-move-column-left',
+                            \ 'col_delete': 'org-table-delete-column',
+                            \ 'col_insert': 'org-table-insert-column',
+                            \ 'row_down': 'org-table-move-row-down',
+                            \ 'row_up': 'org-table-move-row-up',
+                            \ 'row_delete': 'org-table-kill-row',
+                            \ 'row_insert': 'org-table-insert-row',
+                            \ 'row_sort_region_alpha': 'org-table-sort-lines nil ?a',
+                            \ 'row_sort_region_numeric': 'org-table-sort-lines nil ?n',
+                            \ 'row_sort_region_alpha_reverse': 'org-table-sort-lines nil ?A',
+                            \ 'row_sort_region_numeric_reverse': 'org-table-sort-lines nil ?N',
+                            \ 'row_hline_insert': 'org-table-insert-hline',
+                           \  'convert_region_to_table':'org-table-convert-region (point-min) (point-max)'  }
+endfunction
+function! OrgTableDashboard()
+    if s:OrgHasEmacsVar() == 0
+       return
+    endif
+    let save_more = &more | set nomore
+    let save_showcmd = &showcmd | set noshowcmd
+    " different dashboard for "in table" and "not in table"
+    " show export dashboard
+    echohl MoreMsg
+    echo " --------------------------------"
+    echo " Press key for table  operation:"
+    echo " --------------------------------"
+    if getline(line('.')) =~ '^\s*$'
+        let rows_cols = input("Create new table (enter rows, columns): ")
+        if rows_cols =~ '^\d\+\s*,\s*\d\+$'
+            let [rows,cols] = split(rows_cols,',')
+            call org#tbl#create(cols,rows)
+        endif
+        return
+    elseif getline(line('.')) !~ b:v.tableMatch
+        let mydict = {  't' : 'convert_region_to_table'}  
+        echo " [t]  Create (t)able from current block" 
+    else
+        let mydict = { 'l':'col_left', 'r':'col_right', 'e':'col_delete', 'o':'col_insert',
+                \     'd':'row_down', 'u':'row_up', 'x':'row_delete', 
+                \     'i':'row_insert', 'a':'row_sort_region_alpha', 'A':'row_sort_region_alpha_reverse',
+                \     'n':'row_sort_region_numeric', 'N':'row_sort_region_numeric', 'h':'row_hline_insert'
+                \      } 
+        echo " COLUMN:  [l] Move left  [r] Move right  [e] Delete  [o] Insert"
+        echo " ROW:     [d] Move down  [u] Move up     [x] Delete  [i] Insert"
+        echo " "
+        echo " RowSort: [a] alpha(a-z)     [A] alpha(z-a)"
+        echo "          [n] numeric(1..9)  [N] numeric(9-1)"
+        echo ""
+        echo "          [h] insert horizontal line"
+    endif
+    echo " "
+    echohl None
+    let key = nr2char(getchar())
+    for item in keys(mydict)
+        if key == 't'
+            let thisline = getline(line('.'))
+            if thisline !~ '^\s*$'
+                let firstline = search('^\s*$','nb','') + 1
+                let lastline = search('^\s*$','n','') - 1
+                exec firstline . ',' . lastline . 'call OrgEvalTable(mydict[item])'
+            else
+                echo "You aren't in a block of text."
+            endif
+            break
+        elseif (key =~# item) 
+            exec 'OrgTblEval ' . mydict[item]
+            break
+        endif
+    endfor
+    let &more = save_more
+    let &showcmd = save_showcmd
+
+endfunction
+
+function! OrgEvalTable(...) range
+    let options = s:OrgTableEvalOptions()
+    if a:0 == 1
+        let opt = a:1
+        let opt_cmd = '(' . options[opt] . ')'
+    else
+        let opt_cmd = ''
+    endif
     let savecursor = getpos('.')
-    call search('^\s*$','b','')
-    let start=line('.')
+    if a:firstline == a:lastline
+        call search('^\s*$','b','')
+        let start=line('.')
+        call search('^\(\s*|\)\@!','','')
+        "if getline(line('.'))[0:6] == '#+TBLFM'
+            let end=line('.')
+    else
+        let start=a:firstline
+        let end  =a:lastline
+    endif
+    let line_offset = savecursor[1] - start + 1
     " find first line after table block and check for formulas
-    call search('^\(\s*|\)\@!','','')
-    "if getline(line('.'))[0:6] == '#+TBLFM'
-        let end=line('.')
         exe start . ',' . end . 'w! ~/org-tbl-block.org'
-        let part1 = '(let ((org-confirm-babel-evaluate nil)(buf (find-file \' . s:cmd_line_quote_fix . '"~/org-tbl-block.org\' . s:cmd_line_quote_fix . '"' . '))) (progn (org-table-recalculate-buffer-tables)(save-buffer buf)(kill-buffer buf)))' 
+        if opt != 'convert_region_to_table'
+            let part1 = '(let ((org-confirm-babel-evaluate nil)'
+                       \  . '(buf (find-file \' . s:cmd_line_quote_fix . '"~/org-tbl-block.org\' . s:cmd_line_quote_fix . '"' . ')))'
+                       \  . '(progn (beginning-of-line ' . line_offset . ')(forward-char ' . savecursor[2] .')'
+                       \  . '(org-table-maybe-eval-formula)' 
+                       \  . opt_cmd
+                       \  . '(org-table-recalculate-buffer-tables)(save-buffer buf)(kill-buffer buf)))' 
+        else
+            let part1 = '(let ((org-confirm-babel-evaluate nil)'
+                       \  . '(buf (find-file \' . s:cmd_line_quote_fix . '"~/org-tbl-block.org\' . s:cmd_line_quote_fix . '"' . ')))'
+                       \  . '(progn (beginning-of-line ' . line_offset . ')(forward-char ' . savecursor[2] .')'
+                       \  . '(goto-char (point-min))(set-mark (point))(goto-char (point-max))' . opt_cmd
+                       \  . '(save-buffer buf)(kill-buffer buf)))' 
+        endif
         let orgcmd = g:org_command_for_emacsclient . ' --eval ' . s:cmd_line_quote_fix . '"' . part1 . s:cmd_line_quote_fix . '"'
         redraw
         unsilent echo "Calculating in Emacs. . . "
 
         if exists('*xolox#shell#execute')
-            silent call xolox#shell#execute(orgcmd, 1)
+            silent let myx = xolox#shell#execute(orgcmd . '| cat', 1)
         else
             silent exe '!' . orgcmd
         endif
         exe start .',' . end . 'read ~/org-tbl-block.org'
         exe start . ',' . end . 'd'
         redraw
-        unsilent echo "Calculating in Emacs. . .   Calculations complete."
+        unsilent echo "Calculating in Emacs. . .   Calculations complete. " 
     "else
     "    unsilent echo "No #+TBLFM line at end of table, so no calculations necessary."
     "endif
@@ -6263,16 +6456,19 @@ function! OrgExportDashboard()
     let save_more = &more | set nomore
     let save_showcmd = &showcmd | set noshowcmd
     " show export dashboard
-    let mydict = { 't':'template', 'a':'ascii', 'n':'latin-1', 'u':'utf-8',
+    "let mydict = { 't':'template', 'a':'ascii', 'n':'latin1', 'u':'utf8',
+    let mydict = { 't':'template', 'a':'ascii', 'A':'ascii', 'o':'odt', 'O':'odt-and-open',
+            \     'n':'latin1', 'N':'latin1', 'u':'utf8','U':'utf8',
             \     'h':'html', 'b':'html-and-open', 'l':'latex', 
             \     'f':'freemind', 'j':'taskjuggler', 'k':'taskjuggler-and-open',
             \     'p':'pdf', 'd':'pdf-and-open', 'D':'docbook', 'g':'tangle',  
             \     'F':'current-file', 'P':'current-project', 'E':'all' } 
+    echohl MoreMsg
     echo " Press key for export operation:"
     echo " --------------------------------"
     echo " [t]   insert the export options template block"
     echo " "
-    echo " [a/n/u]  export as ASCII/Latin-1/UTF-8"
+    echo " [a/n/u]  export as ASCII/Latin1/utf8  [A/N/U] ...and open in buffer"
     echo " "
     echo " [h] export as HTML"
     echo " [b] export as HTML and open in browser"
@@ -6281,9 +6477,9 @@ function! OrgExportDashboard()
     echo " [p] export as LaTeX and process to PDF"
     echo " [d] . . . and open PDF file"
     echo " "
+    echo " [o] export as ODT        [O] as ODT and open"
     echo " [D] export as DocBook"
     echo " [V] export as DocBook, process to PDF, and open"
-    echo " "
     echo " [x] export as XOXO       [j] export as TaskJuggler"
     echo " [m] export as Freemind   [k] export as TaskJuggler and open"
 
@@ -6293,6 +6489,7 @@ function! OrgExportDashboard()
     echo " [P] publish current project"
     echo " [E] publish all projects"
     echo " "
+    echohl None
     let key = nr2char(getchar())
     for item in keys(mydict)
         if (item ==# key) && (item !=# 't')
@@ -6301,7 +6498,7 @@ function! OrgExportDashboard()
             let exportfile = expand('%:t') 
             silent exec 'write'
 
-            let orgpath = g:org_command_for_emacsclient . ' -n --eval '
+            let orgpath = g:org_command_for_emacsclient . ' --eval '
             let g:myfilename = substitute(expand("%:p"),'\','/','g')
             let g:myfilename = substitute(g:myfilename, '/ ','\ ','g')
             " set org-mode to either auto-evaluate all exec blocks or evaluate none w/o
@@ -6333,16 +6530,13 @@ function! OrgExportDashboard()
             redraw
             echo "Export in progress. . . "
             if exists('*xolox#shell#execute')
-                silent! call xolox#shell#execute(orgcmd, 1)
+                silent! let g:expmsg = xolox#shell#execute(orgcmd . ' | cat ', 1)
             else
                 "execute '!' . orgcmd
                 silent! execute '!' . orgcmd
             endif
             redraw
             echo "Export in progress. . . Export complete."
-            "call s:UndoUnconvertTags()
-            "let g:org_emacs_autoconvert = 0
-            "silent exec 'write'
             break
         endif
     endfor
@@ -6365,7 +6559,11 @@ function! OrgExportDashboard()
                     \ ,'#+XSLT: '
                     \ ]
         silent call append(line('.')-1,template)
+    elseif key =~# 'A\|N\|U'
+        exec 'split ' . expand('%:r') . '.txt'
+        normal gg
     endif
+
     let &more = save_more
     let &showcmd = save_showcmd
 
@@ -6452,9 +6650,11 @@ function! OrgSetColors()
     endfor
 
     "blank out foldcolumn
-    hi! FoldColumn guifg=bg guibg=bg ctermfg=bg ctermbg=bg
+    hi! FoldColumn guifg=bg guibg=bg 
+    "ctermfg=bg ctermbg=bg
     "show text on SignColumn
-    hi! SignColumn guibg=fg guibg=bg ctermfg=fg ctermbg=bg
+    hi! SignColumn guibg=fg guibg=bg 
+    "ctermfg=fg ctermbg=bg
 
     " various text item "highlightings" are below
     " change to suit your taste and put in OrgCustomColors() (see below)
@@ -6479,6 +6679,7 @@ function! OrgSetColors()
     endif
     hi! Org_Full_Link guifg=cyan gui=underline ctermfg=lightblue cterm=underline
     hi! Org_Half_Link guifg=cyan gui=underline ctermfg=lightblue cterm=underline
+    highlight OrgColumnHeadings guibg=#444444 guifg=#aaaaaa gui=underline
 
     "hi! GENERICTODO guifg=pink ctermfg=lightred
     hi! DONETODO guifg=green ctermfg=green
@@ -6499,7 +6700,8 @@ call OrgSetColors()
 
 "Section for refile and archive funcs
 function! OrgRefileDashboard()
-    echohl WarningMsg
+    echohl MoreMsg
+    echo " ================================"
     echo " Press key for a refile command:"
     echo " --------------------------------"
     echo " h   refile heading (including subtree) to point"
@@ -6714,7 +6916,7 @@ setlocal fillchars=|,
 "Section Narrow Region
 let g:nrrw_rgn_vert=1
 let g:nrrw_custom_options={'wrap':0}
-command -buffer Narrow :call NarrowCodeBlock(line('.'))
+command! -buffer Narrow :call NarrowCodeBlock(line('.'))
 
 function! NarrowCodeBlock(line)
     if exists(":NarrowRegion") == 0
@@ -6726,6 +6928,8 @@ function! NarrowCodeBlock(line)
     " function first tests if inside src block, and if so
     " narrows the code block.  If not, then
     " tests for headline and narrows the heading subtree
+    " save buf vars to put in new org buffer if subtree narrowing
+    let main_buf_vars = b:v
     execute a:line
     call search('^#+begin_src','b','')
     let start=line('.') + 1
@@ -6755,6 +6959,7 @@ function! NarrowCodeBlock(line)
             execute start . ',' . end . 'call nrrwrgn#NrrwRgn()'
             " then set ftype in new buffer
             set ft=org
+            let b:v = main_buf_vars
             let &winwidth=start_width*2/3
         else
             execute a:line
@@ -6763,25 +6968,25 @@ function! NarrowCodeBlock(line)
     endif
 endfunction
 " Org Menu Entries
-amenu &Org.&View.Entire\ &Document.To\ Level\ &1<tab>,,1 :set foldlevel=1<cr>
-amenu &Org.&View.Entire\ &Document.To\ Level\ &2<tab>,,2 :set foldlevel=2<cr>
-amenu &Org.&View.Entire\ &Document.To\ Level\ &3<tab>,,3 :set foldlevel=3<cr>
-amenu &Org.&View.Entire\ &Document.To\ Level\ &4<tab>,,4 :set foldlevel=4<cr>
-amenu &Org.&View.Entire\ &Document.To\ Level\ &5<tab>,,5 :set foldlevel=5<cr>
-amenu &Org.&View.Entire\ &Document.To\ Level\ &6<tab>,,6 :set foldlevel=6<cr>
-amenu &Org.&View.Entire\ &Document.To\ Level\ &7<tab>,,7 :set foldlevel=7<cr>
-amenu &Org.&View.Entire\ &Document.To\ Level\ &8<tab>,,8 :set foldlevel=8<cr>
-amenu &Org.&View.Entire\ &Document.To\ Level\ &9<tab>,,9 :set foldlevel=9<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &1<tab>,1 :set foldlevel=1<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &2<tab>,2 :set foldlevel=2<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &3<tab>,3 :set foldlevel=3<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &4<tab>,4 :set foldlevel=4<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &5<tab>,5 :set foldlevel=5<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &6<tab>,6 :set foldlevel=6<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &7<tab>,7 :set foldlevel=7<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &8<tab>,8 :set foldlevel=8<cr>
+amenu &Org.&View.Entire\ &Document.To\ Level\ &9<tab>,9 :set foldlevel=9<cr>
 amenu &Org.&View.Entire\ &Document.Expand\ Level\ &All :set foldlevel=99999<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &1<tab>,1 :silent call OrgShowSubs(1,0)<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &2<tab>,2 :silent call OrgShowSubs(2,0)<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &3<tab>,3 :silent call OrgShowSubs(3,0)<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &4<tab>,4 :silent call OrgShowSubs(4,0)<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &5<tab>,5 :silent call OrgShowSubs(5,0)<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &6<tab>,6 :silent call OrgShowSubs(6,0)<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &7<tab>,7 :silent call OrgShowSubs(7,0)<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &8<tab>,8 :silent call OrgShowSubs(8,0)<cr>
-amenu &Org.&View.&Subtree.To\ Level\ &9\ \ \ \ \ \ <tab>,9 :silent call OrgShowSubs(9,0)cr>
+amenu &Org.&View.&Subtree.To\ Level\ &1<tab>,,1 :silent call OrgShowSubs(1,0)<cr>
+amenu &Org.&View.&Subtree.To\ Level\ &2<tab>,,2 :silent call OrgShowSubs(2,0)<cr>
+amenu &Org.&View.&Subtree.To\ Level\ &3<tab>,,3 :silent call OrgShowSubs(3,0)<cr>
+amenu &Org.&View.&Subtree.To\ Level\ &4<tab>,,4 :silent call OrgShowSubs(4,0)<cr>
+amenu &Org.&View.&Subtree.To\ Level\ &5<tab>,,5 :silent call OrgShowSubs(5,0)<cr>
+amenu &Org.&View.&Subtree.To\ Level\ &6<tab>,,6 :silent call OrgShowSubs(6,0)<cr>
+amenu &Org.&View.&Subtree.To\ Level\ &7<tab>,,7 :silent call OrgShowSubs(7,0)<cr>
+amenu &Org.&View.&Subtree.To\ Level\ &8<tab>,,8 :silent call OrgShowSubs(8,0)<cr>
+amenu &Org.&View.&Subtree.To\ Level\ &9\ \ \ \ \ \ <tab>,,9 :silent call OrgShowSubs(9,0)cr>
 amenu &Org.-Sep1- :
 amenu &Org.&New\ Heading.New\ Head\ Same\ Level<tab><cr>(or\ <s-cr>) :call OrgNewHead('same')<cr>
 amenu &Org.&New\ Heading.New\ Subhead<tab><c-cr> :call OrgNewHead('leveldown')<cr>
@@ -6822,9 +7027,10 @@ amenu &Org.&Hyperlinks.&Previous\ link<tab>,lp :?]]<cr>
 amenu &Org.&Hyperlinks.Perma-compre&ss\ links<tab>,lc :set conceallevel=3\|set concealcursor=nc<cr>
 amenu &Org.&Hyperlinks.&Autocompress\ links<tab>,la :set conceallevel=3\|set concealcursor=c<cr>
 amenu &Org.&Hyperlinks.No\ auto&compress\ links<tab>,lx :set conceallevel=0<cr>
-amenu &Org.&Table.&Create<tab>,bc :call org#tbl#create()<cr>
-amenu &Org.&Table.Column\ &Left<tab>,bl :call org#tbl#move_column_left()<cr>
-amenu &Org.&Table.Column\ &Right<tab>,br :call org#tbl#move_column_right()<cr>
+amenu &Org.&Table\ Menu<tab>,b :call OrgTableDashboard()<cr>
+"amenu &Org.&Table.&Create<tab>,bc :call org#tbl#create()<cr>
+"amenu &Org.&Table.Column\ &Left<tab>,bl :call org#tbl#move_column_left()<cr>
+"amenu &Org.&Table.Column\ &Right<tab>,br :call org#tbl#move_column_right()<cr>
 amenu &Org.-Sep3- :
 amenu <silent> &Org.TODO\ &Cycle<tab><s-cr> :call <SID>ReplaceTodo(matchstr(getline(line('.')),'^\*\+ \zs\S\+\ze '))<CR>
 amenu &Org.Edit\ TA&GS<tab>,et  :call OrgTagsEdit()<cr>
@@ -6874,9 +7080,19 @@ if !exists('g:in_agenda_search') && ( &foldmethod!= 'expr') && !exists('b:v.bufl
 else
     setlocal foldmethod=manual
 endif
-if !exists('b:v.todoitems')
-    call OrgTodoSetup('TODO | DONE')
+"if !exists('b:v.todoitems')
+"    call OrgTodoSetup('TODO | DONE')
+"endif
+if !exists('g:org_todo_setup')
+    let g:org_todo_setup = 'TODO | DONE'
 endif
+if !exists('g:org_tag_setup')
+    let g:org_tag_setup = '{home(h) work(w)}'
+endif
+
+call OrgProcessConfigLines()
+exec "syntax match DONETODO '" . b:v.todoDoneMatch . "' containedin=OL1,OL2,OL3,OL4,OL5,OL6" 
+exec "syntax match NOTDONETODO '" . b:v.todoNotDoneMatch . "' containedin=OL1,OL2,OL3,OL4,OL5,OL6" 
 
 "Menu stuff
 function! MenuCycle()

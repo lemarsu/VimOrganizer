@@ -27,6 +27,7 @@ nnoremap <silent> <buffer> <localleader>co :call OrgClockOut()<cr>
 " dl is for the date on the current line
 noremap <buffer> <localleader>x :call OrgExportDashboard()<cr>
 noremap <buffer> <localleader>d :call OrgDateDashboard()<cr>
+noremap <buffer> <localleader>b :call OrgTableDashboard()<cr>
 "noremap <silent> <buffer> <localleader>dg :call OrgGenericDateEdit()<cr>
 "noremap <silent> <buffer> <localleader>dt :call OrgDateEdit('TIMESTAMP')<cr>
 "noremap <silent> <buffer> <localleader>dd :call OrgDateEdit('DEADLINE')<cr>
@@ -66,37 +67,35 @@ noremap <silent> <buffer> <localleader>v :silent call OrgEval()<cr>
 
 noremap <buffer>   <C-K>         <C-]>
 noremap <buffer>   <C-N>         <C-T>
-noremap <silent> <buffer>   <localleader>,0  :call OrgExpandWithoutText(99999)<CR>
-noremap <silent> <buffer>   <localleader>,9  :call OrgExpandWithoutText(9)<CR>
-noremap <silent> <buffer>   <localleader>,8  :call OrgExpandWithoutText(8)<CR>
-noremap <silent> <buffer>   <localleader>,7  :call OrgExpandWithoutText(7)<CR>
-noremap <silent> <buffer>   <localleader>,6  :call OrgExpandWithoutText(6)<CR>
-noremap <silent> <buffer>   <localleader>,5  :call OrgExpandWithoutText(5)<CR>
-noremap <silent> <buffer>   <localleader>,4  :call OrgExpandWithoutText(4)<CR>
-noremap <silent> <buffer>   <localleader>,3  :call OrgExpandWithoutText(3)<CR>
-noremap <silent> <buffer>   <localleader>,2  :call OrgExpandWithoutText(2)<CR>
-noremap <silent> <buffer>   <localleader>,1  :call OrgExpandWithoutText(1)<CR>
+noremap <silent> <buffer>   <localleader>0  :call OrgExpandWithoutText(99999)<CR>
+noremap <silent> <buffer>   <localleader>9  :call OrgExpandWithoutText(9)<CR>
+noremap <silent> <buffer>   <localleader>8  :call OrgExpandWithoutText(8)<CR>
+noremap <silent> <buffer>   <localleader>7  :call OrgExpandWithoutText(7)<CR>
+noremap <silent> <buffer>   <localleader>6  :call OrgExpandWithoutText(6)<CR>
+noremap <silent> <buffer>   <localleader>5  :call OrgExpandWithoutText(5)<CR>
+noremap <silent> <buffer>   <localleader>4  :call OrgExpandWithoutText(4)<CR>
+noremap <silent> <buffer>   <localleader>3  :call OrgExpandWithoutText(3)<CR>
+noremap <silent> <buffer>   <localleader>2  :call OrgExpandWithoutText(2)<CR>
+noremap <silent> <buffer>   <localleader>1  :call OrgExpandWithoutText(1)<CR>
+noremap <silent> <buffer>   <localleader>, :call OrgExpandWithoutText(1)<CR>
+"noremap <silent> <buffer>   <localleader>/ :let @/='exec call OrgExpandWithoutText(1)<CR>
+"noremap <silent> <buffer>   <localleader>/ :let @a='/^\*\{1,' . &foldlevel . '\} .*'|call LevSearch()<cr>
+nnoremap <buffer> <expr> <localleader>/ '/^\*\{1,' . &foldlevel . '\} .*'
+
 " set reasonable max limit of 12 for '0' command below, because it iterates
 " each for each level, just assume 12 is max. . .
-noremap <silent> <buffer>   <localleader>0   :call OrgShowSubs(12,0)<CR>
-noremap <silent> <buffer>   <localleader>9   :call OrgShowSubs(9,0)<CR>
-noremap <silent> <buffer>   <localleader>8   :call OrgShowSubs(8,0)<CR>
-noremap <silent> <buffer>   <localleader>7   :call OrgShowSubs(7,0)<CR>
-noremap <silent> <buffer>   <localleader>6   :call OrgShowSubs(6,0)<CR>
-noremap <silent> <buffer>   <localleader>5   :call OrgShowSubs(5,0)<CR>
-noremap <silent> <buffer>   <localleader>4   :call OrgShowSubs(4,0)<CR>
-noremap <silent> <buffer>   <localleader>3   :call OrgShowSubs(3,0)<CR>
-noremap <silent> <buffer>   <localleader>2   :call OrgShowSubs(2,0)<CR>
-noremap <silent> <buffer>   <localleader>1   :call OrgShowSubs(1,0)<CR>
+noremap <silent> <buffer>   <localleader>,0   :call OrgShowSubs(12,0)<CR>
+noremap <silent> <buffer>   <localleader>,9   :call OrgShowSubs(9,0)<CR>
+noremap <silent> <buffer>   <localleader>,8   :call OrgShowSubs(8,0)<CR>
+noremap <silent> <buffer>   <localleader>,7   :call OrgShowSubs(7,0)<CR>
+noremap <silent> <buffer>   <localleader>,6   :call OrgShowSubs(6,0)<CR>
+noremap <silent> <buffer>   <localleader>,5   :call OrgShowSubs(5,0)<CR>
+noremap <silent> <buffer>   <localleader>,4   :call OrgShowSubs(4,0)<CR>
+noremap <silent> <buffer>   <localleader>,3   :call OrgShowSubs(3,0)<CR>
+noremap <silent> <buffer>   <localleader>,2   :call OrgShowSubs(2,0)<CR>
+noremap <silent> <buffer>   <localleader>,1   :call OrgShowSubs(1,0)<CR>
+noremap <silent> <buffer>   <localleader>,;   :call OrgShowSubs(1,0)<CR>
 
-vmap <silent> <buffer> <localleader>ci   "zdi/<C-R>z/<ESC>l 
-nnoremap <silent> <buffer> <localleader>ci   i//<ESC>h
-vmap <silent> <buffer> <localleader>cu   "zdi_<C-R>z_<ESC>l 
-nnoremap <silent> <buffer> <localleader>cu   i__<ESC>h 
-vmap <silent> <buffer> <localleader>cc   "zdi=<C-R>z=<ESC>l 
-nnoremap <silent> <buffer> <localleader>cc   i==<ESC>h
-vmap <silent> <buffer> <localleader>cb   "zdi*<C-R>z*<ESC>l 
-nnoremap <silent> <buffer> <localleader>cb   i**<ESC>h
 
 "nnoremap <silent> <buffer> <localleader>no :call NarrowOutline(line('.'))<cr>
 "nnoremap <silent> <buffer> <localleader>ns :call NarrowOutline(line('.'))<cr>
@@ -108,13 +107,13 @@ nnoremap <silent> <buffer> <localleader>m :call OrgColumnsDashboard()<cr>
 au InsertEnter *.org :call org#tbl#reset_tw(line("."))
 au InsertLeave *.org :call org#tbl#format(line("."))
 command! -buffer -nargs=* OrgTable call org#tbl#create(<f-args>)
-nnoremap <silent> <buffer> <localleader>bc :call org#tbl#create()<cr>
+"nnoremap <silent> <buffer> <localleader>bc :call org#tbl#create()<cr>
 command! -buffer OrgTableAlignQ call org#tbl#align_or_cmd('gqq')
 command! -buffer OrgTableAlignW call org#tbl#align_or_cmd('gww')
 command! -buffer OrgTableMoveColumnLeft call org#tbl#move_column_left()
-nnoremap <silent> <buffer> <localleader>bl :call org#tbl#move_column_left()<cr>
+"nnoremap <silent> <buffer> <localleader>bl :call org#tbl#move_column_left()<cr>
 command! -buffer OrgTableMoveColumnRight call org#tbl#move_column_right()
-nnoremap <silent> <buffer> <localleader>br :call org#tbl#move_column_right()<cr>
+"nnoremap <silent> <buffer> <localleader>br :call org#tbl#move_column_right()<cr>
 
 " table function mappings
 inoremap <buffer> <expr> <CR> org#tbl#kbd_cr()
@@ -140,8 +139,8 @@ nnoremap <silent> <buffer> <c-left>           :call OrgShowLess(line("."))<CR>
 nnoremap <silent> <buffer> <c-right>          :call OrgShowMore(line("."))<CR>
 nnoremap <silent> <buffer> <c-a-left>         :call OrgMoveLevel(line("."),'left')<CR>
 nnoremap <silent> <buffer> <c-a-right>        :call OrgMoveLevel(line("."),'right')<CR>
-nnoremap <silent> <buffer> <c-a-up>           :call OrgMoveLevel(line("."),'up')<CR>
-nnoremap <silent> <buffer> <c-a-down>         :call OrgMoveLevel(line("."),'down')<CR>
+nnoremap <silent> <buffer> <c-a-up>           :<C-U>call OrgMoveLevel(line("."),'up',v:count1)<CR>
+nnoremap <silent> <buffer> <c-a-down>         :<C-U>call OrgMoveLevel(line("."),'down',v:count1)<CR>
 nnoremap <silent> <buffer> <a-end>            :call OrgNavigateLevels("end")<CR>
 nnoremap <silent> <buffer> <a-home>           :call OrgNavigateLevels("home")<CR>
 nnoremap <silent> <buffer> <a-up>             :call OrgNavigateLevels("up")<CR>
@@ -155,13 +154,11 @@ nnoremap <silent> <buffer> <localleader>lp    :?]]<cr>
 nnoremap <silent> <buffer> <localleader>lc    :set conceallevel=3\|set concealcursor=nc<cr>
 nnoremap <silent> <buffer> <localleader>la    :set conceallevel=3\|set concealcursor=c<cr>
 nnoremap <silent> <buffer> <localleader>lx    :set conceallevel=0<cr>
-nnoremap <silent> <buffer>  <localleader>,e  :call OrgSingleHeadingText("expand")<CR>
-nnoremap <silent> <buffer>  <localleader>,E  :call OrgBodyTextOperation(1,line("$"),"expand")<CR>
-nnoremap <silent> <buffer>  <localleader>,C  :call OrgBodyTextOperation(1,line("$"),"collapse")<CR>
-nnoremap <silent> <buffer>  <localleader>,c  :call OrgSingleHeadingText("collapse")<CR>
+"nnoremap <silent> <buffer>  <localleader>,e  :call OrgSingleHeadingText("expand")<CR>
+"nnoremap <silent> <buffer>  <localleader>,E  :call OrgBodyTextOperation(1,line("$"),"expand")<CR>
+"nnoremap <silent> <buffer>  <localleader>,C  :call OrgBodyTextOperation(1,line("$"),"collapse")<CR>
+"nnoremap <silent> <buffer>  <localleader>,c  :call OrgSingleHeadingText("collapse")<CR>
 nnoremap <silent> <buffer>   zc              :call OrgDoSingleFold(line("."))<CR>
-"map <buffer>   <localleader>,,           :source $HOME/.vim/ftplugin/org.vim<CR>
-"map! <buffer>  <localleader>w            <Esc>:w<CR>a
 
 " below are alternate mappings for terminals, which
 " don't support some of the above key combinations
@@ -172,7 +169,7 @@ nnoremap <silent> <buffer> <localleader>zl    :call OrgNavigateLevels("left")<CR
 nnoremap <silent> <buffer> <localleader>zr    :call OrgNavigateLevels("right")<CR>
 nnoremap <silent> <buffer> <localleader>zL    :call OrgMoveLevel(line("."),'left')<CR>
 nnoremap <silent> <buffer> <localleader>zR    :call OrgMoveLevel(line("."),'right')<CR>
-nnoremap <silent> <buffer> <localleader>zU    :call OrgMoveLevel(line("."),'up')<CR>
-nnoremap <silent> <buffer> <localleader>zD    :call OrgMoveLevel(line("."),'down')<CR>
+nnoremap <silent> <buffer> <localleader>k    :<c-u>call OrgMoveLevel(line("."),'up',v:count1)<CR>
+nnoremap <silent> <buffer> <localleader>j    :<c-u>call OrgMoveLevel(line("."),'down',v:count1)<CR>
 nnoremap <silent> <buffer>  <localleader>np  :call OrgNewHead('levelup')<CR>
 nnoremap <silent> <buffer>  <localleader>ns  :call OrgNewHead('leveldown')<CR>

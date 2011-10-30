@@ -24,7 +24,12 @@
     nnoremap <silent> <buffer> q  :call OrgQuitAgenda()<cr>
 function! OrgQuitAgenda()
     sign unplace *
-    quit
+    bw
+    if bufnr('ColHeadBuffer') > -1
+	"it's showing a buffer line, push back up . . .
+	resize 100
+    endif
+    "quit
 endfunction
    
     nnoremap <silent> <buffer> <c-tab>  :wincmd k<cr>
