@@ -36,8 +36,7 @@ Copyright: (c) 2010, 2011 by Herbert Sitz
       Narrowing Regions                              |vimorg-narrowing|
       Tables in VimOrganizer                         |vimorg-tables-editing|
 
-
-  9.  Column view..................................: |vimorg-column-view|  
+      Colorschemes and highlighting                  |vimorg-colors|*
   9.  Code and spreadsheet evaluation in Emacs.....: |vimorg-code-eval|  
                                                      |vimorg-spreadsheet-eval|  
             
@@ -47,7 +46,8 @@ Copyright: (c) 2010, 2011 by Herbert Sitz
          sparse tree
          custom searches
 
- 10.  Exporting and Printing.......................: |vimorg-exporting|
+  9.  Column view..................................: |vimorg-column-view|  
+ 10.  Exporting and Printing.......................: |vimorg-export|
 
   4.  Feedback.....................................: |vimorg-feedback|
 
@@ -57,7 +57,7 @@ Copyright: (c) 2010, 2011 by Herbert Sitz
 VimOrganizer is a Vim filetype plugin that attempts to clone Emacs' Org-mode.  
 It is currently (September 2011) in an alpha-stage, both in terms of (1) the 
 breadth and depth of Org-mode features it clones and (2) its level of polish 
-and presence of bugs.  It is nevertheless very usable in its current state.
+and presence of bugs.  It's nevertheless very usable in its current state.
 
 Org-mode, and thus VimOrganizer, is a text-editor add-on/application that can 
 be used for (1) keeping notes, (2) maintaining TODO lists, (3) planning 
@@ -85,7 +85,7 @@ uses the same basic concepts but implements them within the context of Vim
 newsgroup are found here:
 Org-mode Main Manual:  http://orgmode.org/manual/index.html
 Org-mode Compact Guide: http://orgmode.org/guide/index.html
-Org-mode support:  http://news.gmane.org/gmane.emacs.orgmode 
+Org-mode support newsgroup:  http://news.gmane.org/gmane.emacs.orgmode 
 Org-babel information: http://orgmode.org/worg/org-contrib/babel/ 
 
 File formats and basic workflows for VimOrganizer and Org-mode are very
@@ -291,14 +291,14 @@ code to add to your .emacs file is below:
     (set-buffer-modified-p nil))
 
 (add-hook 'org-mode-hook
-    (lambda () (interactive)(replace-regexp "\\(\\s-*\\):\\(DEADLINE\\|CLOSED\\|SCHEDULED\\|<[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \\)" "\\1\\2")
-                    (beginning-of-buffer)(vimorg-tag-adjust)
-            (beginning-of-buffer) ))
+(lambda () (interactive)(replace-regexp "\\(\\s-*\\):\\(DEADLINE\\|CLOSED\\|SCHEDULED\\|<[0-9]\\{4\\}-[0-9]\\{2\\}-[0-9]\\{2\\} \\)" "\\1\\2")
+                (beginning-of-buffer)(vimorg-tag-adjust)
+        (beginning-of-buffer) ))
 -----------------------------------------------------
 
 ==============================================================================
 Metadata                                      *vimorg-metadata*
-                                            
+                                        
 
 Org-mode has three different kinds of metadata: tags, todos, and properties.
 Here is how to set up and edit them.
@@ -314,23 +314,23 @@ A user can cycle between todo states by pressing <s-enter> in Normal mode
 with the cursor on a headline.  Here is how the todos would cycle with the
 default setup of TODO and DONE todos:
 
-            *   Work on final report
-            *   TODO Work on final report (after user presses <s-enter>)
-            *   DONE Work on final report (after second press of <s-enter>)
-            *   Work on final report      (after third press of <s-enter>)
+        *   Work on final report
+        *   TODO Work on final report (after user presses <s-enter>)
+        *   DONE Work on final report (after second press of <s-enter>)
+        *   Work on final report      (after third press of <s-enter>)
 
 The global default for todos setup is in g:org_todo_setup.  If you want to
 change the todo states you can reassign g:org_todo_setup in your vimrc.  For
 example, the line below would add a 'STARTED' state to indicate todos that
 had been started but were not yet finished:
 
-           let g:org_todo_setup='TODO STARTED | DONE'
+       let g:org_todo_setup='TODO STARTED | DONE'
 
 Per-file defaults can be set by including a config line in a particular .org
 file.  For example, the config line below would add a CANCELLED keyword to
 the todo cycle in a specific document:
 
-           #+TODO: TODO STARTED | DONE CANCELLED
+       #+TODO: TODO STARTED | DONE CANCELLED
 
 Please see the Org-mode documentation for more info on todos.  It should be 
 helpful, even though not all Org-mode todo features are implemented yet in 
@@ -343,8 +343,8 @@ Tags are added to a heading by putting them on the line immediately after
 the heading, with each tag preceded and followed by a single colon.  E.g.,
 here is a heading with two tags:
 
-       * Example heading
-         :work:urgent:
+   * Example heading
+     :work:urgent:
 
 You can add whatever tags you wish by editing the tag line directly, however 
 it's usually preferable to use VimOrganizer's system for setting up and
@@ -352,7 +352,7 @@ editing tags.  Global tags setup is held in the variable, g:org_tag_setup,
 which by default holds the setup string '{home(h) work(w)}'.  You can override
 the global setup by including a config line in a particular file.  E.g.,:
 
-       #+TAGS: { work(w) home(h) tennisclub(t) } laptop(l) pc(p)
+   #+TAGS: { work(w) home(h) tennisclub(t) } laptop(l) pc(p)
 
 The braces in the example above indicate that the tags inside are mutually
 exclusive, so choosing one will automatically delete any other.  The letters
@@ -374,14 +374,14 @@ Properties offer a way to attach key/value pairs to headings in a document.
 These pairs must be included, one per line, in between a :PROPERTIES: and
 an :END: marker beneath a heading.  For example:
 
-          * Example heading
-            :PROPERTIES:
-            :Title:     Goldberg Variations
-            :Composer:  J.S. Bach
-            :Artist:    Glen Gould
-            :Publisher: Deutsche Grammophon
-            :NDisks:    1
-            :END:
+      * Example heading
+        :PROPERTIES:
+        :Title:     Goldberg Variations
+        :Composer:  J.S. Bach
+        :Artist:    Glen Gould
+        :Publisher: Deutsche Grammophon
+        :NDisks:    1
+        :END:
 
 For more information on how properties work, please refer to the Org-mode
 documentation:  
@@ -399,11 +399,11 @@ this editing mechanism is currently restricted to dealing with only these
 "primary" dates.
 
 Command  Result
- ,dd     enter DEADLINE date for headline
- ,ds     enter SCHEDULED date for headline
- ,dc     enter CLOSED date for headline
- ,dt     enter timestamp date (i.e., no indicator) for headline
- ,dg     set date at cursor
+,dd     enter DEADLINE date for headline
+,ds     enter SCHEDULED date for headline
+,dc     enter CLOSED date for headline
+,dt     enter timestamp date (i.e., no indicator) for headline
+,dg     set date at cursor
 
 The command-line prompt and calendar that appear when you execute a ',d_'
 command operate nearly the same as the date-time prompt in Emacs'
@@ -473,19 +473,19 @@ First child                       Move cursor to first child heading
 <a-right-arrow>                   of current heading.
 
 Last child                        Move cursor to last child heading
-                                  of current heading.
+                              of current heading.
 
 Next heading                      . . . to next heading of any kind
 
 Previous heading                  . . . to previous heading of any kind
 
 Next heading same level           . . . to next heading of same level
-                                  regardless of whether it is in 
-                                  current subtree
+                              regardless of whether it is in 
+                              current subtree
 
 Previous heading same level       . . . to next heading of same level
-                                  regardless of whether it is in 
-                                  current subtree
+                              regardless of whether it is in 
+                              current subtree
 ----------------------------------------------------------------------
 Editing Document Structure                *vimorg-structure-editing*
 
@@ -500,7 +500,7 @@ Move subtree down          Move current subtree to position
 
 Promote subtree            Move entire subtree to be parent
 <c-a-leftarrow>            heading's level and position after
-                           parent subtree.
+                       parent subtree.
 
 Demote subtree             Move entire subtree to be child
 <c-a-rightarrow>           of previous heading of same level.
@@ -530,57 +530,56 @@ Refiling                         *vimorg-refile-heading*
 
 Refiling involves moving a subtree structure
 to a new location, either in the current document or
-another document.  One set of refile comman(The user interface for this is currently
-barebones and not optimal, like many other things it will
-be revised. . . .)
+another document.  One set of refile comman(The user interface for 
+this is currently barebones and not optimal, like many other 
+things it will be revised. . . .)
 
-Refile to point
-,rh                        Move current subtree to be subchild
-                           of heading at a different location.
-                           Invoking this command first presents
-                           you with a 'Target file:' prompt, at
-                           which you can use <Tab> to choose the
-                           file target.  Then press <Enter> to
-                           get a list of top-level headings in
-                           the selected file.  If you want to
-                           select a lower-level heading then add
-                           a '/' and press <Tab> to get list of
-                           direct subheadings of the heading, or
-                           '*' and <Tab> to get list of all levels
-                           of subheads of selected heading.  Finally,
-                           <Enter> to choose the heading to refile to,
-                           or <Esc> to cancel the refile.
-
-Refile, jump to point
-,rj                        Uses same prompt as 'Refile to point' command,
-                           but instead of moving subtree there simply
-                           moves cursor to that point (which may involve
-                           moving to a different buffer if chosen point
-                           is not in current buffer).
-
-Refile, set persistent
-refile point
-,rs                        Same prompt as for 'Refile to point' command,
-                           but instead of refiling it saves the
-                           chosen file and heading to be used as 
-                           target of subsequent 'Refile to Persistent
-                           Point' command.
-
-Refile to persistent
-refile point
-,rp                        Move current subtree to location defined
-                           by the persistent refile point.
-
-
-Refile, jump to persistent point
-,rx                        Move cursor to file/heading that is persistent
-                           refile point.
+  Refile to point
+  ,rh                        Move current subtree to be subchild
+                         of heading at a different location.
+                         Invoking this command first presents
+                         you with a 'Target file:' prompt, at
+                         which you can use <Tab> to choose the
+                         file target.  Then press <Enter> to
+                         get a list of top-level headings in
+                         the selected file.  If you want to
+                         select a lower-level heading then add
+                         a '/' and press <Tab> to get list of
+                         direct subheadings of the heading, or
+                         '*' and <Tab> to get list of all levels
+                         of subheads of selected heading.  Finally,
+                         <Enter> to choose the heading to refile to,
+                         or <Esc> to cancel the refile.
+  
+  Refile, jump to point
+  ,rj                        Uses same prompt as 'Refile to point' command,
+                         but instead of moving subtree there simply
+                         moves cursor to that point (which may involve
+                         moving to a different buffer if chosen point
+                         is not in current buffer).
+  
+  Refile, set persistent
+  refile point
+  ,rs                        Same prompt as for 'Refile to point' command,
+                         but instead of refiling it saves the
+                         chosen file and heading to be used as 
+                         target of subsequent 'Refile to Persistent
+                         Point' command.
+  
+  Refile to persistent
+  refile point
+  ,rp                        Move current subtree to location defined
+                         by the persistent refile point.
+  
+  
+  Refile, jump to persistent point
+  ,rx                        Move cursor to file/heading that is persistent
+                         refile point.
 
 ------------------------------------------------------------------------
 Keybindings                              *vimorg-keybindings*
-                                         *vimorg-terminal-keybindings*
 
-Keybindings are a bit of a moving target.  I'm happy to hear from people
+Keybindings are still a moving target.  I'm happy to hear from people
 who think they've found better command bindings.  You can look up bindings
 (1) in this help file, (2) in the menu in g(raphical)vim, which lists
 binding next to command you choose, and/or in the vimorg-main-mappings.vim 
@@ -588,6 +587,7 @@ and vimorg-agenda-mappings.vim scripts in the ftplugin directory.  A few
 mappings, mostly agenda stuff, are also made in the main org.vim ftplugin
 file.  The keybindings are messy and will be cleaned up at some point.
 
+                                     *vimorg-keybindings-terminal*
 TERMINAL KEYBINDINGS.  It's important to understand that many of the 
 default bindings are NOT available in many or all versions of vim running
 on terminals.  This is the fault of the terminal for not handling the 
@@ -599,7 +599,23 @@ mappings you want to do for yourself:
 http://orgmode.org/manual/TTY-keys.html#TTY-keys
 
 Below are the alternate mappings already in VimOrganizer for the most
-commonly-used key combinations that aren't available in terminals:
+commonly-used key combinations that aren't available in terminals. They
+are found at the bottom of the file, vimorg-main-mappings.vim in the
+ftplugin folder:
+
+,<tab>             GlobalCycle                  (same as <shift-TAB> in gvim)
+<localleader>zu    Node navigate up             (same as <alt-up>...        ) 
+<localleader>zd    Node Navigate down           (same as <alt-down>...      )
+<localleader>zl    Node navigate left           (same as <alt-left>...      )
+<localleader>zr    Node navigate right          (same as <alt-right>...     )
+<localleader>zL    Promote heading tree         (same as <ctrl-alt-left>... )
+<localleader>zR    Demote headng tree           (same as <ctrl-alt-right>...)
+<localleader>k     Move heading tree up         (same as <ctrl-alt-up>...   )
+<localleader>j     Move headng tree down        (same as <ctrl-alt-down>... )
+<localleader>np    Add new heading node below at parent's level (<c-s-enter>)
+<localleader>ns    Add new heading node below at subhead level (<c-enter>)
+
+
 ------------------------------------------------------------------------
 Hyperlinks                               *vimorg-hyperlinks* *vimorg-links*
 
@@ -704,8 +720,234 @@ return to original buffer.  See help for |NarrowRegion| for more information.
 ------------------------------------------------------------------------
 Tables in VimOrganizer                             *vimorg-tables-editing*
 
-VimOrganizer uses the table code from the excellent VimWiki project.  
+Tables in VimOrganizer work very much like they work in Org-mode.  
+VimOrganizer uses some of the table code from the excellent VimWiki project.
+Other major parts of the table functionality come from calling directly
+to Org-mode in Emacs to evaluate or manipulate a table.
+
+Regardless of the editing functionality available in VimOrganizer,
+the behavior of tables in export will be identical to what it is
+in Org-mode, since exports are in fact done by Org-mode.
+
+Table operations are accessed through the Table Dashboard.  You can open
+the dashboard with the command :OrgTableDashboard or the key sequence
+,b.  The table dashboard is context-sensitive.  Operations accessible 
+on the table dashboard are as follows:
+
+1. When cursor is on a blank line    You are prompted to create
+                                     a new table, which you can do
+                                     by specifying rows and columns.
+
+2. When cursor is on non-table text  You will be prompted to create a
+                                     table from the block of text you
+                                     are on.  The block is defined as
+                                     the area between the previous
+                                     blank line and the next blank
+                                     line.  This operation calls out
+                                     to Org-mode and processes the 
+                                     text block with the elisp
+                                     function 'org-convert-table-region'.
+                                     The text will be split into a
+                                     table based on the following rules:
+
+                                     a. If every line contains at least 
+                                        one TAB character, the function
+                                        assumes that the material is tab 
+                                        separated.
+                                     b. If every line contains a comma, 
+                                        comma-separated values (CSV) are 
+                                        assumed. 
+                                     c. If neither of above apply, lines 
+                                        are split at whitespace into fields.
+
+3. When cursor is on a table.  In this case a full dashboard is shown.
+                               All user options call out to Org-mode
+                               in Emacs to process the table.  This is
+                               done even for relatively simple options,
+                               since the #+TBLFM line may change.  See
+                               Org-mode documenation regading these
+                               options and how tables and spreadsheet
+                               functionality works:
+                               http://orgmode.org/manual/Tables.html#Tables
+
+     Dashboard operations:     All of these operations depend on the 
+                               position of the cusor within the table.
+
+     'COLUMN' operatons:  l -- move column left
+                          r -- move column right
+                          e -- delete column
+                          o -- insert column
+
+     'ROW' operations     d -- move row down
+                          u -- move row up
+                          x -- delete row
+                          i -- insert row
+
+     Insert horiontal line  -- h will insert a line below cursor
+
+     'RowSort' operations:  all of the row sort operations operate
+                            on the current 'row-region' of the table.
+                            A row region is the range of rows including
+                            the cursor row up to (1) beginning-of-table
+                            or a horizontal line above, and down to (2) the
+                            end-of-table or a horizontal line below.
+
+                            Available sorts are
+                              a  -- alphabetical, a to z
+                              A  -- reverse alphabetical, z-a
+                              n  -- numeric, low to high
+                              N  -- numeric, high to low
+
 ------------------------------------------------------------------------
+Table Evaluation                           *vimorg-table-evaluation*
+
+Spreadsheet functionality is supported by calling out to Org-mode
+in Emacs.  You cause this by putting the cursor in a table and
+choosing '(T)able, E(v)aluate Table' from the menu in gvim, or 
+by pressing |,v|.  Evaluation will do two things:
+
+    (1)  If cursor is in a table cell with a valid row/col
+         formula, it will be moved into the #+TBLFM string.
+    (2)  Formulas defined in the TBLFM string will be 
+         evaluated and results will be placed in appropriate
+         cells in the table.
+
+Since the table is evaluated in Emacs, all of the spreadsheet 
+formulas are evaluated as specified in the Org-mode manual:
+http://orgmode.org/manual/The-spreadsheet.html#The-spreadsheet
+
+NOTE:  Be sure to note that the default evaluation does _NOT_
+       follow the rule of equal precedence of multiplication
+       and decision.  Instead, division has lower precedence
+       than multiplication:
+
+             2/3*4 == 2 / (3 * 4)
+
+       See:  http://orgmode.org/manual/Formula-syntax-for-Calc.html#Formula-syntax-for-Calc 
+
+
+========================================================================
+Colors and highlighting in VimOrganizer        *vimorg-colors*
+                                               *vimorg-colorschemes*
+                                               *vimorg-highlighting*
+
+VimOrganizer works well with many different Vim colorschemes.  It will
+automatically adjust highlighting for major items when a new 
+colorscheme is loaded.  Colors for heading lines are mapped to
+the colors a colorscheme sets for the following syntax items:
+
+                Outline Level 1   -   Statement
+                Outline Level 2   -   Identifier
+                Outline Level 3   -   Constant
+                Outline Level 4   -   Comment
+                Outline Level 5   -   Special
+
+Many elements in VimOrganizer documents have highlighting that is not
+affected by generic colorschemes.  These include items like TODO
+keywords, tags, properties, configuration lines, etc.
+-------------------------------------------------------------------
+                                          *vimorg-customizing-colors*
+The main way to change highlighting is to add a special function to your
+vimrc.  This function is called when a VimOrganizer file is loaded
+and whenever a colorscheme is changed.  It provides a spot to write
+your own highlight statements (see  |highlight| ) to override the
+default settings.
+
+function! OrgCustomColors()
+    " various Org syntax item highlighting statements are below
+    " these are the current defaults.  Uncomment and edit a line if you
+    " want different highlighting fof the element
+
+    " below are defaults for any TODOS you define.  TODOS that
+    " come before the | in a definition will use  'NOTDONETODO'
+    " and those that come after are DONETODO
+    "hi! DONETODO guifg=green ctermfg=green
+    "hi! NOTDONETODO guifg=red ctermfg=lightred
+
+    " heading level highlighting is done in pairs, one for the
+    " heading when unfoled and one for folded.  Default is to make
+    " them the same except for the folded version being bold:
+    " assign OL1 pair for level 1, OL2 pair for level 2, etc.
+    "hi! OL1 guifg=somecolor guibg=somecolor 
+    "hi! OL1Folded guifg=somecolor guibg=somecolor gui=bold
+
+
+    " tags are lines below headings that have :colon:separated:tags:
+    "hi! Org_Tag guifg=lightgreen ctermfg=blue
+
+    "  lines that begin with '#+' in column 0 are config lines
+    "hi! Org_Config_Line guifg=darkgray ctermfg=magenta
+
+    "drawers are :PROPERTIES: and :LOGBOOK: lines and their associated
+    " :END: lines
+    "hi! Org_Drawer guifg=pink ctermfg=magenta
+    "hi! Org_Drawer_Folded guifg=pink ctermfg=magenta gui=bold cterm=bold
+
+    " this applies to value names in :PROPERTIES: blocks 
+    "hi! Org_Property_Value guifg=pink ctermfg=magenta
+
+    " three lines below apply to different kinds of blocks
+    "hi! Org_Block guifg=#555555 ctermfg=magenta
+    "hi! Org_Src_Block guifg=#555555 ctermfg=magenta
+    "hi! Org_Table guifg=#888888 guibg=#333333 ctermfg=magenta
+
+    " dates are date specs between angle brackets (<>) or square brackets ([])
+    "hi! Org_Date guifg=magenta ctermfg=magenta gui=underline cterm=underline
+
+    " Org_Star is used to "hide" initial asterisks in a heading
+    "hi! Org_Star guifg=#444444 ctermfg=darkgray
+
+    "hi! Props guifg=#ffa0a0 ctermfg=gray
+
+    " bold, itals, underline, and code are highlights applied
+    " to character formatting
+    "hi! Org_Code guifg=darkgray gui=bold ctermfg=14
+    "hi! Org_Itals gui=italic guifg=#aaaaaa ctermfg=lightgray
+    "hi! Org_Bold gui=bold guifg=#aaaaaa ctermfg=lightgray
+    "hi! Org_Underline gui=underline guifg=#aaaaaa ctermfg=lightgray
+    "hi! Org_Lnumber guifg=#999999 ctermfg=gray
+
+    " these lines apply to links: [[link]], and [[link][link desc]]
+    "if has("conceal")
+    "    hi! default linkends guifg=blue ctermfg=blue
+    "endif
+    "hi! Org_Full_Link guifg=cyan gui=underline ctermfg=lightblue cterm=underline
+    "hi! Org_Half_Link guifg=cyan gui=underline ctermfg=lightblue cterm=underline
+
+    "  applies to the Heading line that can be displayed in column view
+    "highlight OrgColumnHeadings guibg=#444444 guifg=#aaaaaa gui=underline
+
+endfunction
+----------------------------------------------------------------------
+Custom TODO highlighting                    *vimorg-custom-todo-highlights*
+
+VimOrganizer will automatically highlight DONETODOs and NOTDONETODOs with
+a default color, or color you assign in OrgCustomColors().  If you
+want to assign custom highlighting for one or more TODOs then
+you need to create a dictionary with appropriate values.
+Below is an illustration:
+
+
+   Problem:  You want to create custom highlights for the NEXT 
+             and WAITING todos in the todo setup of:
+             'TODO NEXT WAITING | DONE CANCELED'
+
+   Solution:  put statement like the one below in OrgCustomColors()
+              function in your vimrc, (or somewhere in vimrc below
+              the OrgCustomColors() func, if any):
+
+       let g:org_todo_custom_highlights = 
+               \     { 'NEXT': { 'guifg':'#888888', 'guibg':'#222222',
+               \              'ctermfg':'gray', 'ctermbg':'darkgray'}
+               \      'WAITING': { 'guifg':'red', 
+               \                 'ctermfg':'red' } }
+                        
+   NOTE:  (1) Vim is very picky about punctuation in dictionary assignments.
+          Note that each of the items in the statement above is a string.
+          (2) You can override one or more of the highlight items:
+              guifg, guibg, ctermfg, ctermbg  
+
+========================================================================
 Searches and the Agenda                    *vimorg-agenda* *vimorg-searches*
 
 The agenda is a buffer where VimOrganizer gathers heading lines from 
@@ -938,7 +1180,7 @@ Column view                                              *vimorg-column-view*
 
 Column view in VimOrganizer is similar to the feature having the same name
 in Org-mode, but different in important ways. At its core it simply offers
-a way to reveal data about a heading when it is displayed in folded mode.
+a way to reveal data about a heading when it is displayed as a fold.
 Folded heading lines in Vim are not directly editable.  (A user interface
 to allow easy editing of columns/properties is on VimOrganizer's todo list.)
 
@@ -949,16 +1191,25 @@ this line in your vimrc:
 
         let g:global_column_view = 1
 
+Specification of COLUMNS is similar to Org-mode, except that ITEM is
+always included, although length settings for ITEM are always ignored.
+This is because the ITEM display is automatically truncated to make
+space for the other columns, and ITEM will automatically expand or
+contract if you resize the Vim window.  The column definition string 
+format is identical to that used by Org-mode, although the optional
+'summary-type' attribute is currently ignored in VimOrganizer. See: 
+http://orgmode.org/manual/Defining-columns.html#Defining-columns
+
 The built-in global default for column view is to show any TAGS flush
-left in a 30 character column.  You can modify that be setting a global 
+left in a 35 character column.  You can modify that be setting a global 
 default in your vimrc.  The built-in default would look like this:
 
-        let g:global_column_defaults = 'TAGS,%-30s'
+        let g:global_column_defaults = '%ITEM %35TAGS'
 
 A default that would show the DEADLINE value in addition to TAGS might
 look like this:
 
-        let g:global_column_defaults = 'DEADLINE,%-14s,TAGS,%-30s'
+        let g:global_column_defaults = '%ITEM %15DEADLINE %30TAGS'
 
 --------------------------------------------------------------------------
 Columns Dashboard                                   *vimorg-columns-dashboard*
@@ -973,7 +1224,8 @@ allows you to change them:
                               line in a document.
     current default columns -- the current settings, which may reflect
                                custom default settings
-    column view on          --  will be ON/OFF
+    column view on          -- will be ON/OFF
+    Show column headers     -- will be ON/OFF
     heading line count      -- will be ON/OFF, refers to whether the
                                count of heading lines shows at right
                                margin for a folded heading.  Can be
@@ -981,9 +1233,15 @@ allows you to change them:
 
     Operations on dashboard
     -----------------------
+           f    --- force all of buffer to use settings.  If
+                    not chosen then (1) only the current subtree will be
+                    placed into column, or (2) entire buffer
+                    will be in column view if cursor is in 
+                    front of the first heading in the document.
            r    --- revert to buffer defaults, if defaults have
                     been changed
            t    --- toggle column view ON/OFF
+           h    --- toggle column headings ON/OFF
            l    --- toggle line count ON/OFF
      
                                           *org_columns_custom_list*
@@ -993,8 +1251,8 @@ allows you to change them:
      defines a list have two custom column strings, one having a 
      DEADLINE and a TAGS column, the second having just a DEADLINE column:
 
-          let *g:org_custom_column_options* = ['DEADLINE,%-14s,TAGS,%-30s',
-                           \ 'DEADLINE,%-14s']
+          let *g:org_custom_column_options* = ['%ITEM %14DEADLINE %30TAGS',
+                           \ '%ITEM %14DEADLINE']
 
      g:org_custom_column_options is a list containing column format
      strings.  Each format string will be listed on the dashboard
@@ -1020,15 +1278,18 @@ COLUMNS property                                 *vimorg-columns-property*
 
 Columns properties work like how they work in Org-mode.  You can set
 a COLUMNS property in the property block of a heading.  That setting
-will (1) override any default or custom settings for the buffer, and
-(2) be inherited by subheadings of of that heading.  For example,
-all of the headings below would display folded lines with just
-a DEADLINE column, regardless of what the settings are in the rest
-of the document:
+will (1) override any default or custom settings for the buffer (unless
+you enter a buffer-wide columns mode with cursor not on the heading), and
+(2) be inherited by subheadings of of that heading.  (Also, you
+can force entire buffer to use a headings COLUMNS property by
+choosing 'f' on columns dashboard.)  For example, entering columns
+mode withe the cursor on 'Heading One' below below would display 
+folded lines with just a DEADLINE column, regardless of what the 
+settings were in the rest of the document:
 
        * Heading One
          :PROPERTIES:
-         :COLUMNS: DEADLINE,%-14s
+         :COLUMNS: %ITEM %14DEADLINE
          :END:
        ** Subhead One
           Text for Subhead One
@@ -1036,7 +1297,71 @@ of the document:
           Some text for Subhead Two
 
 ==============================================================================
-3. VimOrganizer Feedback                                      *vimorg-feedback*
+VimOrganizer Export                                  *vimorg-export*
+                                                     *vimorg-print*
+                                                     *vimorg-export-to-html*
+                                                     *vimorg-export-to-pdf*
+
+VimOrganizer calls out to Org-mode in Emacs for all exports.  To print
+a VimOrganizer file the recommended method is to export to a format that
+is better for printing.
+
+The Export Dashboard can be opened from the menu in gvim ('Export/Publish')
+or with the key mapping |,x| .
+The VimOrganizer Export Dashboard is similar to Org-mode's export
+dispatcher, and the best way to learn about it is to read the Org-mode 
+documentation:
+http://orgmode.org/manual/Exporting.html#Exporting
+
+                                              *vimorg-export-microsoft-word*
+                                              *vimorg-export-opendocument*
+                                              *vimorg-export-openoffice*
+                                              *vimorg-export-docx*
+The Export Dashboard includes an option for export to OpenDocument
+format.  This option creates an odt document that can then be 
+edited by (recent version) of Microsoft Word or OpenOffice.  
+Once into Word, OpenOffice, or LibreOffice the document can 
+be saved as a .doc or .docx file.
+Export of items into odt supports objects like images, tables,
+and footnotes in addition to highlighting and other simple formatting.  
+The odt export currently (November 2011) requires special configuration
+of your Emacs install.  Instructions are here:
+http://orgmode.org/manual/OpenDocumentText-export.html#OpenDocumentText-export
+
+                                              *vimorg-publishing*
+As in Org-mode, VimOrganizer's Export Dashboard also includes
+options for "publishing" a project.  A "project" is a set of
+related documents that you set up to be automatically exported
+together, which is called "publishing" the project.  The
+publishing options on the VimOrganizer's Export Dashboard 
+simply call Emacs to process files so the Org-mode documentation for 
+publishing is best way to learn about them.  Setting up a project
+requires some fairly simple configuration using lisp statements
+added to the .emacs file, which is Emacs' counterpart to Vim's vimrc:
+http://orgmode.org/manual/Publishing.html#Publishing
+
+                                              *vimorg-tangling*
+                                              *vimorg-literate-programming*
+Another option on the Export Dashboard is 'tangle'.  This operation
+extracts source code blocks from an org document and saves them so
+they're in format that can be (1) executed by an interpreter or 
+(2) compiled, depending on the source block language.  This provides
+a way to use VimOrganizer as an editor for 'literate programming'.
+See: http://en.wikipedia.org/wiki/Literate_programming
+Documentation for tangling can be found in Org-mode's manual:
+http://orgmode.org/manual/Extracting-source-code.html#Extracting-source-code
+
+                                                 *vimorg-export-options*
+Finally, one option on the Export Dashboard simply inserts a template
+of option lines into your document.  This template can be inserted anywhere
+in your document, but is typically placed at the very beginning.  It 
+provides a default set of export-related options that you can modify 
+as you wish.  For more information on all the options see this page:
+http://orgmode.org/manual/Export-options.html#Export-options
+
+
+==============================================================================
+VimOrganizer Feedback                                      *vimorg-feedback*
 
 Feedback is always welcome. If you like the plugin, please rate it at the
 vim-page:
