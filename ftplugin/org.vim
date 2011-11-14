@@ -104,7 +104,7 @@ setlocal foldexpr=OrgFoldLevel(v:lnum)
 setlocal nocindent
 setlocal iskeyword=@,39,45,48-57,_,129-255
 
-let b:v.basedate = strftime("%Y-%m-%d %a")
+let b:v.basedate = org#Strftime("%Y-%m-%d %a")
 let b:v.sparse_list = []
 let b:v.fold_list = []
 let b:v.suppress_indent=0
@@ -2935,7 +2935,7 @@ endfunction
 
 function! s:TestTime()
     let g:timestart=join(reltime(), ' ') 
-    let g:start = strftime("%")
+    let g:start = org#Strftime("%")
     let i = 0
     set fdm=expr
     let g:timefinish=join(reltime(), ' ')
@@ -2943,7 +2943,7 @@ function! s:TestTime()
 endfunction
 function! s:TestTime2(fu)
     let g:timestart=join(reltime(), ' ') 
-    let g:start = strftime("%")
+    let g:start = org#Strftime("%")
     let i = 0
     execute a:fu
     let g:timefinish=join(reltime(), ' ')
@@ -3037,7 +3037,7 @@ function! s:DateDictToScreen()
             let gap = 0
             call setline(line('$')+ 1,g:agenda_date_dict[key].marker)
             call setline(line('$')+ 1,g:agenda_date_dict[key].l)
-            if ((g:org_agenda_days == 1) || (key == strftime("%Y-%m-%d"))) && exists('g:org_timegrid') && (g:org_timegrid != [])
+            if ((g:org_agenda_days == 1) || (key == org#Strftime("%Y-%m-%d"))) && exists('g:org_timegrid') && (g:org_timegrid != [])
                 call s:PlaceTimeGrid(g:agenda_date_dict[key].marker)
             endif
         endif
@@ -3160,7 +3160,7 @@ function! s:SetupDateAgendaWin()
     set nowrap
     nmap <silent> <buffer> <c-CR> :MyAgendaToBuf<CR>
     nmap <silent> <buffer> <CR> :AgendaMoveToBuf<CR>
-    nmap <silent> <buffer> vt :call OrgRunAgenda(strftime("%Y-%m-%d"), 'd',g:org_search_spec)<CR>
+    nmap <silent> <buffer> vt :call OrgRunAgenda(org#Strftime("%Y-%m-%d"), 'd',g:org_search_spec)<CR>
     nmap <silent> <buffer> vd :call OrgRunAgenda(g:agenda_startdate, 'd',g:org_search_spec,g:agenda_startdate)<CR>
     nmap <silent> <buffer> vw :call OrgRunAgenda(g:agenda_startdate, 'w',g:org_search_spec)<CR>
     nmap <silent> <buffer> vm :call OrgRunAgenda(g:agenda_startdate, 'm',g:org_search_spec)<CR>
@@ -3232,7 +3232,7 @@ function! s:ProcessDateMatch(datematch,date1,date2,...)
     if a:0 > 0
         let today = a:1
     else
-        let today = strftime("%Y-%m-%d")
+        let today = org#Strftime("%Y-%m-%d")
     endif
     let datematch = a:datematch
     let rangedate = matchstr(getline(line(".")),'--<\zs\d\d\d\d-\d\d-\d\d')
@@ -4504,7 +4504,7 @@ function! DateCueResult( cue, basedate)
             let cue = cue .'d'
         endif
         if cue ==? '.'
-            let newdate = strftime('%Y-%m-%d')
+            let newdate = org#Strftime('%Y-%m-%d')
         elseif cue ==# ''
             let newdate = a:basedate
         elseif (cue =~ '^\d\+$') && (str2nr(cue) <= 31)
@@ -4578,7 +4578,7 @@ function! DateCueResult( cue, basedate)
             let mycount = mlist[2]
             let type = mlist[3]
             if len(op) == 1
-                let mydate = strftime('%Y-%m-%d')
+                let mydate = org#Strftime('%Y-%m-%d')
             else
                 let mydate = basedate
             endif
@@ -4771,7 +4771,7 @@ function! OrgDateInc(direction)
 endfunction
 
 function! s:GetClock()
-    return '['.strftime("%Y-%m-%d %a %H:%M").']'
+    return '['.org#Strftime("%Y-%m-%d %a %H:%M").']'
 endfunction 
 function! OrgClockIn(...)
     let save_cursor=getpos(".")
@@ -6256,7 +6256,7 @@ function! s:Emacs2PDF()
     "silent !c:\sumatra.exe newtest3.org
 endfunction
 function! s:Today()
-    return strftime("%Y-%m-%d")
+    return org#Strftime("%Y-%m-%d")
 endfunction
 
 function! OrgCustomSearchMenu()
@@ -6483,7 +6483,7 @@ endfunction
 function! s:Timer()
     call feedkeys("f\e")
     " K_IGNORE keycode does not work after version 7.2.025)
-    echo strftime("%c")
+    echo org#Strftime("%c")
     " there are numerous other keysequences that you can use
 endfunction
 
@@ -6863,7 +6863,7 @@ function! OrgExportDashboard()
                     \ '#+TITLE:     ' . expand("%p")
                     \ ,'#+AUTHOR:   '
                     \ ,'#+EMAIL:    '
-                    \ ,'#+DATE:     ' . strftime("%Y %b %d %H:%M")
+                    \ ,'#+DATE:     ' . org#Strftime("%Y %b %d %H:%M")
                     \ ,'#+DESCRIPTION: '
                     \ ,'#+KEYWORDS: '
                     \ ,'#+LANGUAGE:  en'
